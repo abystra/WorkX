@@ -41,7 +41,7 @@ export function renderOrganization(ctx) {
   return `<section class="wx-team-panel"><div class="wx-team-panel-heading"><h2>${tr(ctx,'saas.organization')}</h2>${button(ctx,'saas-department','saas.addDepartment')}</div><p class="wx-team-caption">${tr(ctx,'saas.orgNote')}</p><div class="wx-saas-root">${ctx.icon('users',18)}<strong>${e(ctx.data.enterprise.name)}</strong></div>${branch('') || `<p class="wx-team-caption">${tr(ctx,'saas.addDepartment')}</p>`}<p class="wx-team-caption">${tr(ctx,'saas.unassigned')} · ${e(ctx.data.teamMembers.filter(m => !m.departmentId).length)}</p></section>`;
 }
 export function renderRoles(ctx) {
-  const rows = [['enterpriseManage','allow','allow','deny'],['roleManage','allow','allow','deny'],['transfer','allow','deny','deny'],['agentManage','allow','allow','deny'],['ecosystemManage','allow','allow','deny'],['taskUse','scoped','scoped','scoped'],['audit','allow','allow','deny']];
+  const rows = [['enterpriseManage','allow','allow','deny'],['roleManage','allow','allow','deny'],['transfer','allow','deny','deny'],['agentManage','scoped','scoped','scoped'],['ecosystemManage','allow','allow','deny'],['privateRead','scoped','scoped','scoped'],['resourceShare','scoped','scoped','scoped'],['connectionManage','scoped','scoped','scoped'],['taskUse','scoped','scoped','scoped'],['audit','allow','allow','deny']];
   return `<section class="wx-team-panel"><div class="wx-team-panel-heading"><h2>${tr(ctx,'saas.roles')}</h2></div><p class="wx-team-caption">${tr(ctx,'saas.roleNote')}</p><div class="wx-saas-table-scroll"><table class="wx-saas-table"><thead><tr><th scope="col">${tr(ctx,'saas.permission')}</th>${['owner','admin','member'].map(r=>`<th scope="col">${tr(ctx,'team.role.'+r)}</th>`).join('')}</tr></thead><tbody>${rows.map(([key,...values])=>`<tr><th scope="row">${tr(ctx,'saas.'+key)}</th>${values.map(v=>`<td class="is-${v}">${tr(ctx,'saas.'+v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="wx-team-caption">${tr(ctx,'saas.resourceNote')}</p></section>`;
 }
 export function memberMeta(member, ctx) {
@@ -56,6 +56,7 @@ function save(ctx) {
 export function handleSaasAction(action, el, ctx) {
   if (!action.startsWith('saas-')) return false;
   const e=ctx.escape, data=ctx.data, entityId=el.dataset.id;
+  if(data.spaceType&&(data.spaceType==='personal'||!data.teamMembers.some(m=>m.id==='m1'&&m.status==='active'&&['owner','admin'].includes(m.role)))){ctx.toast(t('spaces.noPermission'));return true;}
   const footer=(saveAction,extra='')=>button(ctx,'close','team.cancel')+button(ctx,saveAction,'team.save',extra,true);
   if(action==='saas-tenant') ctx.modal(t('saas.editTenant'),`<form id="saas-tenant-form"><label class="form-field"><span>${tr(ctx,'saas.tenantName')}</span><input name="name" maxlength="80" required value="${e(data.enterprise.name)}"></label><p class="prototype-note">${tr(ctx,'saas.boundary')}</p></form>`,footer('saas-save-tenant'));
   else if(action==='saas-save-tenant') {

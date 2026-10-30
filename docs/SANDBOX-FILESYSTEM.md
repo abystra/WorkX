@@ -1,6 +1,6 @@
 # 沙箱目录、挂载与持久化规范
 
-版本：0.1 · 调研日期：2026-10-30 · 状态：WorkX 目标约定，尚未部署验证
+版本：0.2 · 调研日期：2026-10-30 · 状态：WorkX 目标约定，尚未部署验证
 
 ## 调研结论
 
@@ -46,7 +46,7 @@
 | `/mnt/knowledge/<revision>` | 本次授权的知识快照，不能由模型覆盖。 | 本地只读副本或改用 Knowledge MCP；不使用当前 beta 原生卷承载只读知识。 |
 | `/mnt/skills/<bundle_revision>` | 审核后固定版本的 Skill 文件。 | 模板或受信流程发布到本地只读目录，Adapter 配置 SDK 可发现来源并验证实际加载结果。 |
 | `/mnt/persist` | 可选的会话检查点、已关闭文件和输出副本。 | 原生卷可用并验证后启用；不把活跃 Git／依赖目录／数据库／锁文件默认放在卷上。 |
-| `/home/agent/.claude` | SDK 会话和审核配置；仅当前 Session。 | 留在本地文件系统，备份受限恢复包；不自动将整个目录重定向到 beta 原生卷。 |
+| `/home/agent/.claude` | SDK 会话和审核配置；仅当前 Session。 | 留在本地文件系统；恢复包只选择性保留会话材料，排除配置中的票据与认证缓存，不整目录打包。 |
 
 目录常量由 Runtime 配置生成，并同步到 RunSpec、SDK cwd、系统指令、工具和成果采集器。前端使用 file_id、artifact_id 与 version_id，不直接拼接沙箱绝对路径。
 
@@ -83,6 +83,10 @@
 - 供应商 beta 权限限制不能通过共享卷绕过租户隔离；跨 Session 不共享可写卷。
 - 无卷模式下 S3 备份／恢复、成果采集仍能完整运行；浏览器看到的是 WorkX 授权文件引用。
 
-凭证目录补充：`/mnt/skills`、`/mnt/persist` 和恢复包均不保存长期 OAuth／平台密钥或员工 CLI 登录缓存；临时票据仅运行时使用并脱敏，具体续租与撤销见 [凭证架构](CREDENTIALS-AND-CONNECTORS.md)。
+## 凭证与暂停的统一边界
 
-需要独立 `.env` 或密钥文件的 Skill 采用 [运行契约](SKILL-RUNTIME-CONTRACT.md)：只在该执行实例的临时目录／进程装配，包目录保持只读；真实凭证型执行环境不进入暂停／快照复用流程，避免只删文件却保留内存中的密钥。
+[凭证规范](CREDENTIAL-SOLUTION.md) 优先适用：所有真实上游 Secret 都不进入 Agent E2B，包括模型 key、Token、证书和员工 CLI 缓存。`.env` 若只有非敏感配置可以按 [运行契约](SKILL-RUNTIME-CONTRACT.md) 创建；包含真实 Secret 时只能在沙箱外 Credential Worker 装配，Worker 临时目录不映射进上述 `/mnt`。
+
+票据和 relay 签名材料也是秘密，但只授予本 Attempt 的有限代理权；它们仅运行时使用，不放入成果或恢复包，暂停前撤销，恢复后重新签发。不能只删 `.env` 就声称清除了进程内存。直接 FUSE 挂载若要求在 Agent E2B 放入对象存储原始密钥，则当前方案不支持；保留受限 S3 物化／采集路径。
+
+同用户的 personal 与 organization 必须使用不同的 tenant／Session 映射、卷与恢复包。供应商 Secret Store 的出口注入是后续 Adapter 评测，不改变本目录规范，也不意味着真实值可写入沙箱环境。

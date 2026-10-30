@@ -1,60 +1,53 @@
 # WorkX 架构设计文档
 
-版本：0.5 · 2026-10-30 · 状态：目标架构，尚未实施
+版本：0.7 · 2026-10-30 · 状态：空间制 SaaS 原型已补齐，真实运行与隔离待建设
 
-本目录基于用户提供的分层架构图调整：保留 E2B Sandbox，将 OpenCode Harness 替换为 **Claude Agent SDK + WorkX Runner**。面向企业 SaaS 场景，补齐多租户、任务调度、知识处理、事件流和成果持久化边界。
+目标：React + TypeScript → Python FastAPI → E2B → WorkX Runner + Claude Agent SDK。服务个人和组织，统一 tenant 隔离，保留独立知识处理与成果存储。当前 JavaScript 原型已有个人／组织切换、独立设置、创建组织、演示邀请、数据／连接归属；尚未接通真实凭证、OAuth、租户后端或沙箱。
 
-## 阅读顺序
+## 规范入口与阅读顺序
 
-| 文档 | 解决的问题 |
+| 文档 | 负责的规则 |
 | --- | --- |
-| [总体架构](ARCHITECTURE.md) | 分层、语言职责、依赖关系、业务执行链路 |
-| [Claude 与 E2B 执行设计](CLAUDE-E2B-RUNTIME.md) | Harness、Runner、沙箱、会话、权限、恢复 |
-| [沙箱文件系统规范](SANDBOX-FILESYSTEM.md) | `/mnt` 路径依据、卷与物化区别、权限及持久化边界 |
-| [凭证与 Connector 架构](CREDENTIALS-AND-CONNECTORS.md) | SSO、MCP／Skill／CLI 凭证、短期票据与中间件候选 |
-| [凭证落地方案](CREDENTIAL-SOLUTION.md) | 按使用方式分四类、沙箱外注入、Vault 参照模型、飞书 sidecar、分期 |
-| [Nango 引入评审](NANGO-ADOPTION.md) | 能否实际引入、认证分流、部署／协议／生产验收门槛 |
-| [Skill／MCP 运行配置](SKILL-RUNTIME-CONTRACT.md) | 独立 env、`.env`、Secret 文件、启动与清理契约 |
-| [知识解析与搜索选型](KNOWLEDGE-PIPELINE.md) | Tika 解析、Meilisearch 检索、权限与评测路线 |
-| [数据与租户设计](DATA-AND-TENANCY.md) | 组织用户角色、领域对象、数据隔离、知识与成果 |
-| [接口与事件约定](API-AND-EVENTS.md) | 前后端 API、Runner 协议、状态机、流式事件 |
-| [实施路线与验收](IMPLEMENTATION-PLAN.md) | 从当前原型迁移到真实产品的顺序与验证要求 |
-| [ADR-0001：执行内核选型](adr/0001-claude-agent-sdk-on-e2b.md) | 这次选型的原因、影响和未决事项 |
-| [ADR-0002：凭证注入方式](adr/0002-credential-broker-and-egress-injection.md) | 凭证分类、自建 Broker、沙箱外注入的决定与取舍 |
+| [总体架构](ARCHITECTURE.md) | 分层、模块、语言、执行与生态链路 |
+| [个人／组织租户](TENANCY-MODEL.md) | personal／organization、成员、切换、资源与生命周期 |
+| [凭证落地方案](CREDENTIAL-SOLUTION.md) | 凭证分类、PG 密文＋Transit、Gateway、授权恢复与阶段范围 |
+| [凭证实体与协议](CREDENTIALS-AND-CONNECTORS.md) | Vault／Connection／Lease／授权请求、身份和服务边界 |
+| [Skill／MCP 运行契约](SKILL-RUNTIME-CONTRACT.md) | env／`.env`／原值依赖的装配、Worker 隔离与清理 |
+| [API 与事件](API-AND-EVENTS.md) | 任务、needs_auth、新 Attempt、回调及投递状态机 |
+| [Claude 与 E2B](CLAUDE-E2B-RUNTIME.md) | SDK Adapter、沙箱、模型出口、取消与恢复 |
+| [沙箱目录](SANDBOX-FILESYSTEM.md) | `/mnt`、本地副本、持久卷与权限 |
+| [数据与租户](DATA-AND-TENANCY.md) | 实体、数据库约束、索引、文件版本与隔离 |
+| [Knowledge](KNOWLEDGE-PIPELINE.md) | Tika／OCR、切块、Meilisearch Embedding 与检索评测 |
+| [实施路线](IMPLEMENTATION-PLAN.md) | 分阶段交付与真实验收门槛 |
+| [审查记录](ARCHITECTURE-REVIEW.md) | 本轮冲突、修正、风险与检查结果 |
+| [ADR-0001](adr/0001-claude-agent-sdk-on-e2b.md) | E2B＋Claude Harness 方向 |
+| [ADR-0002](adr/0002-credential-broker-and-egress-injection.md) | 原生 Broker、沙箱外密钥、不引入额外连接平台 |
 
-## 与现有原型的关系
+规范发生重复时以负责该领域的入口为准；冲突必须修改原段落，不能仅追加一个相反的说明。
 
-现有 [原型说明](../workmates-prototype/README.md)、[功能清单](../workmates-prototype/docs/PRODUCT-FEATURES.md)、[SaaS 产品基础](../workmates-prototype/docs/SAAS-FOUNDATION.md)、[生态调研](../workmates-prototype/docs/ECOSYSTEM-INTEGRATION-RESEARCH.md) 继续描述当前可体验的功能和产品要求。
+## 统一基线
 
-当前代码是 `workmates-prototype/dist/` 下的原生 JavaScript 交互原型，使用浏览器 localStorage 和演示执行逻辑。React、FastAPI、Claude、E2B、数据库和知识 Workers 都是本目录中的目标设计；本次仅编写文档，没有迁移前端、部署后端或创建付费沙箱。
+- 注册用户拥有唯一 personal 租户，可另外加入 organization。个人不是 null tenant，也不是真实企业法人；资源、凭证、检索、用量和后台任务均固定归属。
+- User 是全局身份，Membership 和角色属于空间。部门只作可选组织属性，首版不做权限继承。真实登录在 P0，企业 SSO 可分期。
+- 凭证 0/A/B/C/D 五类；自建薄 Broker＋Gateway，原生 OAuth／国内平台 Adapter。**Nango 不引入**，历史评审不作为交付计划。
+- PG 保存版本化密文，OpenBao Transit 管理包装密钥；产品 API 不回显原值，可信服务授权解密。原值不进入 Agent E2B；D 类程序只在隔离 Credential Worker。
+- 模型也经 Gateway。沙箱只有短期票据／必要的临时签名材料或占位符；暂停前撤销，恢复重新签发，检查点不得打包认证缓存。
+- needs_auth 释放运行租约；授权有效后同 Task 创建新 Attempt，重新验证主体、fence 和副作用，不无条件继续旧进程。
+- PostgreSQL／S3 保存事实与文件；Redis Streams＋outbox 分发。知识候选 Tika＋Meilisearch 自动 Embedding／混合检索，与 pgvector 对照，不默认双向量化。
 
-## 架构基线
+## 已核对的官方依据
 
-- 前端：React + TypeScript；管理 API：Python 3.12+ + FastAPI。
-- 执行：E2B Linux 沙箱内运行 Python WorkX Runner，使用 Claude Agent SDK；Claude 模型通过受控 API 认证调用。
-- 异步：独立 Task Worker、Knowledge Worker、Channel Worker；首版选择 Redis Streams 消费组与 PostgreSQL outbox，不在 API 请求内执行长任务。
-- 知识：Tika 作为通用解析候选；Meilisearch 自动 Embedding＋混合检索作为优先验证的 SearchProvider 候选，与 pgvector 基线评测，首版不默认叠加双引擎。
-- 授权：SSO、外部连接授权、密钥保管和工具票据分层；凭证按使用方式分类，真实值不进沙箱，由自建 Credential Broker 与 Gateway 在沙箱外注入。OpenBao 做加密，Nango 仅作长尾 OAuth Adapter，飞书 CLI 默认在受控 Worker 运行，见 [凭证落地方案](CREDENTIAL-SOLUTION.md)。
-- 存储：PostgreSQL + pgvector 起步；S3 兼容对象存储保存文件、成果和恢复材料。Redis 不作为唯一业务事实来源。
-- 协议：前端 REST + SSE 为主；WebSocket 留给确有双向实时需求的编辑器或平台连接。
-- 安全边界：租户与资源授权由 WorkX 服务端核验；E2B 提供执行环境隔离。SDK 工具权限和提示词不是租户隔离机制。
-
-## 官方资料核对
-
-以下资料于 2026-10-30 阅读。引用支撑 SDK／沙箱能力；模块划分、协议与数据模型均是 WorkX 的设计决策。
-
-| 官方来源 | 本次核对结论 |
+| 来源 | 仅用于支撑的范围 |
 | --- | --- |
-| [Agent SDK 概览](https://code.claude.com/docs/en/agent-sdk/overview) | 提供 Python／TypeScript SDK，包含 Agent loop、工具、MCP、Skills、会话和 Hooks；产品使用 API 认证，不借用个人 Claude 订阅登录。 |
-| [SDK 托管](https://code.claude.com/docs/en/agent-sdk/hosting) | SDK 管理 Claude CLI 子进程，具有本地目录和会话状态；需要按有状态执行进程托管。 |
-| [Python SDK](https://code.claude.com/docs/en/agent-sdk/python) | Python 包为 claude-agent-sdk；交互式 ClaudeSDKClient 支持中断。 |
-| [官方 Python 仓库](https://github.com/anthropics/claude-agent-sdk-python) | Python 包包含 CLI；安装包、CLI、模板和系统依赖仍需联调锁定。 |
-| [会话](https://code.claude.com/docs/en/agent-sdk/sessions) | resume 需要指定会话及可恢复的会话材料；会话 fork 不自动隔离工作目录。 |
-| [工具权限](https://code.claude.com/docs/en/agent-sdk/permissions) | allowed_tools 用于自动批准，不等于只暴露这些工具；自动批准可绕过 can_use_tool。 |
-| [Skills](https://code.claude.com/docs/en/agent-sdk/skills) | Skills 依赖配置来源和目录发现；需有明确的加载与发布策略。 |
-| [E2B 文档](https://docs.e2b.dev/) | 提供 Linux 沙箱、命令与文件操作，普通 e2b SDK 足以托管 Runner；Code Interpreter 是额外选择。 |
-| [E2B 持久化](https://docs.e2b.dev/sandbox/persistence) | 支持暂停／恢复；WorkX 仍另行保存业务记录、成果和恢复材料，并自行管理清理策略。 |
+| [Claude SDK](https://code.claude.com/docs/en/agent-sdk/overview)、[托管](https://code.claude.com/docs/en/agent-sdk/hosting) | Harness 与有状态执行模型 |
+| [SDK 安全部署](https://code.claude.com/docs/en/agent-sdk/secure-deployment) | 代理／自定义工具模式，不等于 WorkX 已验证隔离 |
+| [Managed Agents Vault](https://platform.claude.com/docs/en/managed-agents/vaults) | 产品参考，不是 E2B 自建 SDK 的现成功能 |
+| [E2B Secrets](https://docs.e2b.dev/secrets)、[注入](https://docs.e2b.dev/secrets/inject) | 后续出口 Adapter 候选，非首版强依赖 |
+| [OpenBao Transit](https://openbao.org/docs/secrets/transit/) | 密文在应用库、加密密钥在 Transit 的分工 |
+| [Clerk 空间模型](https://clerk.com/docs/guides/organizations/configure) | 个人和组织并存是可选建模方式，WorkX 的统一 tenant 是自身决定 |
 
-SDK 和云服务持续演进，编码前必须锁定实际验证通过的版本，不将本次文档里的协议设计误作第三方已提供的 API。
+旧 [Nango 评审](NANGO-ADOPTION.md) 仅保留“不采用”的历史记录。SDK、供应商能力与许可证随版本变化，编码前锁版本并做 PoC；当前方案不是生产能力证明。
 
-目录调研补充：统一采用 `/mnt/session/{uploads,workspace,outputs}` 与 `/mnt/knowledge`；SDK cwd 自行指定。E2B 原生卷的 beta 限制与可选 `/mnt/persist` 策略见 [文件系统规范](SANDBOX-FILESYSTEM.md)，不是所有目录都对应持久卷。
+## 当前原型与产品要求
+
+[原型运行说明](../workmates-prototype/README.md)、[产品功能清单](../workmates-prototype/docs/PRODUCT-FEATURES.md)、[SaaS 产品基础](../workmates-prototype/docs/SAAS-FOUNDATION.md)、[生态调研](../workmates-prototype/docs/ECOSYSTEM-INTEGRATION-RESEARCH.md) 继续描述现有页面和验收范围。个人空间、真实凭证与后端隔离是目标要求，不以本轮文档调整视为 UI 已实现。

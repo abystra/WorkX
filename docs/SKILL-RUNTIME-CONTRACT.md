@@ -1,24 +1,16 @@
-# Skill 与 MCP 的运行配置、环境变量和密钥注入
+# Skill／MCP／Plugin 运行配置与凭证装配
 
-版本：0.1 · 2026-10-30 · WorkX 自建契约，尚未实现
+版本：0.2 · 2026-10-30 · WorkX 自建契约，尚未实现
 
-## 建模原则
+## 统一规则
 
-Skill 不必自带凭证，但确实可能依赖独立环境变量、`.env`、证书、API key、OAuth Connection 或本地工具。系统要支持这些依赖，不能一律要求“都改成 OAuth”，也不能因为包里没有密钥就认为它能直接运行。
+本文件执行 [凭证规范](CREDENTIAL-SOLUTION.md)：真实上游 Secret 不进入 Agent E2B。需要读取原值的程序由可信 Credential Worker 承担，不再保留“单独 E2B 沙箱可注入真实密钥”的例外。`.env` 是文件格式，不是秘密存储或隔离机制；Nango 不参与运行装配。
 
-将 **包定义、安装、运行配置、凭证绑定和每次注入实例** 分开：
-
-| 对象 | 保存内容 |
-| --- | --- |
-| SkillVersion／McpServerDefinition | 审核后的程序与声明：版本、入口、参数、配置 schema、需要的逻辑 Secret、网络目标与权限。 |
-| Installation | 哪个企业／项目可用，允许哪些成员和 Agent 使用。 |
-| RuntimeBinding | 该安装的非敏感配置值、Connection 选择、Secret 引用以及注入目标。 |
-| SecretVersion | 密钥库中的真实值和轮换记录；不放进 Skill 包或 Git。 |
-| RuntimeInstance | 本次调用装配的 env／临时文件、子进程、租约和清理记录。 |
-
-以下 schema 是 WorkX 扩展约定，不是 Claude SKILL.md 的官方字段。已有 Skill 使用 `.env.example`、README 或脚本说明时，可以辅助识别依赖，但正式运行需要人工审核并登记；不能自动执行包内 install 脚本、自动采集本机 `.env` 或把占位值当成真实凭证。
+Skill 可以依赖非敏感 env、代理票据、占位符、OAuth Connection 或原始密钥文件，不能把这些一概当作 OAuth。区分包声明、租户安装、RuntimeBinding、SecretVersion 与 RuntimeInstance；Plugin 按组件分别声明与授权，去掉 Skill 文案不等于禁用对应命令。
 
 ## 声明示例
+
+下面是 WorkX 的附加 manifest，不是官方 SKILL.md 字段；包内只允许 schema／占位示例，不包含真实值。
 
 ```json
 {
@@ -27,74 +19,66 @@ Skill 不必自带凭证，但确实可能依赖独立环境变量、`.env`、�
   "version": "1.0.0",
   "execution": {
     "kind": "command",
-    "location": "connector_worker",
+    "location": "credential_worker",
     "argv": ["python", "report.py"],
-    "working_directory": "skill_instance"
+    "working_directory": "runtime_instance"
   },
   "configuration": {
     "REGION": {"type": "string", "required": true, "secret": false}
   },
   "credentials": {
     "REPORT_API_KEY": {
+      "usage": "D",
       "kind": "static_secret",
       "required": true,
       "inject": {"type": "env", "name": "REPORT_API_KEY"}
     },
     "CRM_CONNECTION": {
+      "usage": "B",
       "kind": "connection",
       "required": true,
       "inject": {"type": "gateway_handle"}
     }
   },
-  "optional_files": [
-    {"name": "runtime.env", "format": "dotenv", "enabled": false}
-  ]
+  "files": [{"name": ".env", "format": "dotenv", "required": false}]
 }
 ```
 
-实际绑定只保存 `secret_ref` 或 `connection_ref`，名称在单个安装范围内解析；两个 Skill 即使都使用 `API_KEY`，也不能共用全局环境变量。值装配规则：平台保留配置不可覆盖 → 企业／项目授权默认值 → 安装级配置 → 允许用户填写的本轮非敏感参数。Secret 永远经有权限的 Resolver 读取，不接受模型随意指定密钥路径。
+例中 REPORT_API_KEY 属 D 类，只有明确批准的 Worker 程序可读取；若脚本可改为 Gateway 调用则重新声明为 A 类，不再注入原值。真实安装记录只保存密钥／连接引用，归属当前 tenant 与 owner。未支持 D 类隔离执行的安装保持不可启用。
 
-## 各类运行方式
+## 路由与装配矩阵
 
-| 类型 | 注入与执行方式 | 约束 |
+| 需求 | Agent E2B 内 | 可信区 |
 | --- | --- | --- |
-| 仅指令 Skill | 只发布审核指令与工具引用。 | 不创建虚假的 OAuth／Secret 依赖。 |
-| 公开远程 MCP | 直接配置受审 URL，无上游凭证 Header。 | WorkX 入站授权、域名和工具范围仍有效。 |
-| API key／Header MCP | 在 Gateway／远程 Adapter 中注入 Header。 | 值不写到模型可见的配置说明；协议需要 Basic、自定义 Header 时按 schema 适配。 |
-| OAuth MCP | Broker 完成授权／刷新，Gateway 代理；Nango 可选。 | 不假设 SDK 会替用户打开浏览器和管理 consent。 |
-| stdio MCP | Launcher 创建子进程的专用 env 与 cwd。 | 主进程不可通过全局 os.environ 修改承载并发租户；审核后使用固定程序与参数。 |
-| 本地脚本依赖 env，且原样发送密钥 | 优先改为 Gateway 地址（BASE_URL）；无法改地址时，env 中只写占位符，由出口代理对 allowed_hosts 替换（P2）。 | 只适用于原样发送密钥的客户端；签名或换取 token 的情况按 C 类在沙箱外处理，见 [凭证落地方案](CREDENTIAL-SOLUTION.md#四类使用方式)。 |
-| 本地脚本依赖 env，需读取原值 | 按该 RuntimeInstance 设置子进程 env。 | 不把每个 Skill 的秘密注入整个 Claude CLI／全部 Bash 子进程。 |
-| 脚本强制读 `.env` | 仅在确有需要时创建独立临时工作目录中的 `.env`，运行后清理。 | 不改只读 `/mnt/skills` 包，不在项目共享目录或 `/mnt/persist` 留存。 |
-| 证书／私钥／SDK JSON 文件 | SecretFile Adapter 创建临时文件，传路径给受控程序。 | 记录文件类别与用途，权限限定，不进入成果采集或恢复包。 |
+| 仅指令／无凭证 MCP | 审核指令、受限工具或本地计算 | Gateway 无上游认证头，仍核验任务票据 |
+| Header／OAuth MCP | WorkX MCP URL＋票据 | Gateway 注入／原生 Adapter 刷新 |
+| 可配置 BASE_URL 的脚本 | 非敏感地址与代理票据 | API／Model Gateway 注入；校验真实操作而非放开任意代理 |
+| 必须直连但原样发送 key | 只允许已验证 EgressAdapter 的占位符，未支持时阻止执行 | 可选 P2 的出口 Header 注入；不支持签名／换 Token 的原值计算 |
+| stdio MCP，无秘密 | 专用进程、固定 argv/cwd、白名单非敏感 env | 安装策略与资源授权 |
+| stdio／脚本需原始 Secret | 仅远程工具接口 | Credential Worker 专用进程 env／临时文件 |
+| 非敏感 `.env` | RuntimeInstance 临时目录；不可覆盖审核包 | 校验 schema／来源；不自动读取开发者电脑文件 |
+| 真实密钥 `.env`／证书文件 | 禁止创建或挂载 | Credential Worker 临时目录，白名单输出、外部 Supervisor 清理 |
 
-[Claude SDK MCP 文档](https://code.claude.com/docs/en/agent-sdk/mcp) 提供 stdio 的 `env`、远程 HTTP 的 `headers` 配置，并说明 SDK 不代跑交互式 OAuth。它是运行配置手段，不代表自带 WorkX 的 Secret Resolver、Skill 专用环境或租户隔离。
+[Claude SDK MCP](https://code.claude.com/docs/en/agent-sdk/mcp) 支持 stdio env、HTTP headers 等配置，但不自带 WorkX 运行实例／凭证隔离；普通 Bash 调用不会因“正在使用某 Skill”自动进入专属环境。SDK 配置里只能放符合上述边界的值。
 
-## `.env` 与环境变量的具体规则
+## env／文件规则
 
-1. `.env` 只是配置序列化方式，不是加密存储。`.env.example` 可随审核包分发；真实 `.env` 由 Resolver 在执行时生成。
-2. 使用约定的 dotenv 库／数据解析器，禁止 `source` 不可信文件或用 shell eval 读取配置。不同语言库对引号、换行、插值规则可能不同，按 Skill runtime profile 固定并测试。
-3. 临时目录由 Launcher 生成，权限收紧；生成文件前防符号链接，默认仅受控执行进程可用。不要把原始密钥放在命令行参数、错误消息、Prompt、工具说明或审计正文中。
-4. 使用 `subprocess` 独立 env map 和 argv 数组启动，白名单继承必要的 PATH／语言运行配置；不把服务端整套环境向下复制，也不允许 Skill 覆盖保留的身份、票据、代理与安全配置。
-5. 仅注入声明且已授权的变量；缺失时报出变量名、用途和授权入口，不显示值。可选配置是否使用默认值需在 schema 中明确。
-6. 写入真实值前先判断能否改用 Gateway 注入或出口占位符；多数 `.env` 中的 API Key 属于原样发送的 A 类，不需要真实值进入执行环境。静态 key 不存在真实短期签发机制时，注入它仍然暴露静态 key，不能称为“已转换为短期凭证”。优先将依赖它的程序留在可信 Connector Worker，经 Gateway 提供能力。
+1. `.env.example` 允许非敏感示例；`.env` 按 schema 由 Launcher 装配，禁止 source／eval 不可信文件。dotenv 特殊字符、换行与插值规则在固定运行时验证。
+2. 不修改只读 `/mnt/skills`，不把 Secret 写到 workspace、persist、模板或 SDK 配置目录。可信 Worker 的临时路径不是 Agent 可挂载目录。
+3. 每个 RuntimeInstance 采用独立 argv、cwd、env map，绝不通过修改主进程全局 os.environ 切换并发用户。两个安装同名 API_KEY 也不得串值；平台身份／代理／票据配置不可被包或模型覆盖。
+4. 只继承必要非敏感基础变量；密钥来源由服务端授权解析，不接受模型给任意 Secret 路径。日志只留变量名、引用、版本与结果，不留值、认证 Header 或临时授权材料。
+5. 同 UID、同执行域内 env 和 0600 文件不是不互信代码间的强隔离。可信 Worker 也不得让不同租户／不互信组件共享可读取秘密的执行空间，需操作系统或独立执行单元证明隔离。
+6. Credential Worker 不暂停保存带 Secret 的内存，不入 Agent 会话复用池；先撤销运行权限，再终止进程并清理临时材料，重试重新解析。销毁与保留承诺以实际平台能力为准，不能只删文件就声称彻底清除了内存／备份。
+7. E2B 中的短期票据／占位符映射在暂停前撤销，不写 Prompt／SDK transcript／恢复包；恢复重新签发。模型 API key 同样留在 Model Gateway。
 
-## 隔离边界与例外
+## 产品流程与状态
 
-同一个 E2B 环境里，同 UID 的代码可能读取对方的环境、临时文件或进程信息。为子进程单独设置 env、创建 0600 文件，不等于对同沙箱其他代码实现了可靠的秘密隔离。Skill 懒加载也不是进程隔离：Claude 普通 Bash 调用不会自动具有“当前 Skill 专属的 env”。
+安装 → 展示依赖和使用方式 → 填非敏感配置 → 选择本租户可用连接／创建 Secret → 测试 → 启用。个人空间只有本人的授权管理；组织内共享连接与成员私有连接分别展示。没有认证依赖时不弹 OAuth 页面。
 
-默认路径是“Skill → 受限工具 → Gateway → 可信 Worker”；无法代理、确需持有真实凭证的脚本，进入单独、短生命周期的执行环境或已证明隔离的 Worker，不与多个不互信 Skill 共用可写空间。启动前明确该类执行会使凭证进入此进程，不沿用“从不进入执行环境”的描述。
+状态：missing_config、missing_secret、needs_authorization、ready、disabled、test_failed。缺失时显示逻辑变量名、用途与补齐入口，不显示值。取消配置不覆盖已有有效版本；测试不在未告知情况下发送真实业务写操作。
 
-凭证型临时执行环境不进入复用池、不暂停保存含秘密的内存状态；关闭执行环境后按策略销毁，不只删除 `.env` 就宣称内存／供应商快照已清除。持久化只导出经白名单检查的结果，临时文件、env、认证缓存和秘密均排除。票据撤销先发生，文件清理是补充措施；重试需重新鉴权与装配，不复用上次密钥文件。
-
-## 产品配置与交互流程
-
-安装 → 检查依赖 → 填非敏感配置 → 选择已有连接／填写新 Secret → 检查用途、归属与权限 → 连接测试 → 启用。没有认证依赖的包可直接进入配置／测试，不出现多余授权页面。
-
-状态至少包含 `missing_config`、`missing_secret`、`needs_authorization`、`ready`、`disabled`、`test_failed`。配置页显示 Secret 名称、来源、末次更新和是否可用，不回显原值；个人连接与企业连接可分别选择且受授权限制。
-
-运行时按所需逻辑能力解析依赖，依次核验企业／成员状态、Installation、工具范围、Secret／Connection 归属和当前租约；注入、执行、审计、清理均记录 RuntimeInstance。取消、超时与进程崩溃由外部 Supervisor 清理，不能依赖 Skill 脚本主动删除文件。
+执行时检查租户、Membership／服务主体、Installation、RuntimeBinding、工具和资源范围、authz_epoch 及租约；缺少用户授权进入 needs_auth。授权后的任务重新调度及 PendingOperation 核对遵循 [API 约定](API-AND-EVENTS.md)，不绕过原主体和原租户。
 
 ## 验收
 
-同名变量不同 Skill 不串值；缺失配置不误报 OAuth；none 模式不附加多余 Token；Header／env／文件模式分别生效；子进程不继承全局秘密；`.env` 含特殊字符不会执行代码；取消与崩溃后清理；跨租户 Secret 引用拒绝；成果和恢复包不含凭证；SDK 缺认证工具的状态不会被误判为任务已成功。
+验证 none／静态／OAuth／env／文件各路径；同名变量不同安装隔离；个人／组织空间不能互借连接；不继承整套平台环境；Secret 不入 E2B；Worker 隔离、超时清理与取消；dotenv 不执行代码；输出、事件、SDK 转录与检查点不含秘密；不可代理依赖明确报不支持，不偷偷降级为真实 key 注入。

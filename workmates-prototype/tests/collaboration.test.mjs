@@ -1,3 +1,5 @@
+import * as spacesModel from '../dist/spaces-model.js';
+import * as spacesUI from '../dist/spaces.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -77,10 +79,12 @@ function moduleHarness(source=initialData) {
   return {...boundary,data,state,effects,ctx,action};
 }
 
-function appHarness({saved,hash=''}={}) {
+function appHarness({saved,spacesSaved,hash=''}={}) {
   const boundary=browserBoundary(saved);
+  if(spacesSaved)boundary.values.set(spacesModel.SPACES_STORAGE_KEY,JSON.stringify(spacesSaved));
   const timers=[];
   const context=vm.createContext({
+    ...spacesModel,...spacesUI,
     ...i18n,...ecosystem,...connection,...channel,...channelModel,...team,renderSecondary,initialData,suggestions,icon,avatar,logo,
     document:boundary.document,localStorage:boundary.storage,structuredClone,console,innerWidth:1280,
     window:{scrollY:0,scrollTo(){},matchMedia:()=>({addEventListener(){}}),addEventListener(){}},
@@ -108,7 +112,8 @@ test('A project task adds its selected agent and moves to review while the proje
   assert.equal(app.run('taskBy('+JSON.stringify(taskId)+').status'),'done');
   const reviewColumn=app.html().split('wx-project-column is-review')[1]?.split('wx-project-column is-accepted')[0];
   assert.match(reviewColumn,/新的团队交付任务/);
-  const saved=JSON.parse(app.values.get('workmates-prototype-v1'));
+  const stored=JSON.parse(app.values.get(spacesModel.SPACES_STORAGE_KEY));
+  const saved=stored.spaces.find(s=>s.id===stored.activeSpaceId).data;
   assert.equal(saved.tasks[0].status,'done');
   assert.ok(saved.projects[0].agentIds.includes('a2'));
 });
@@ -145,7 +150,7 @@ test('New workspace routes and project tabs render through the app in both langu
       app.run(`state.page=${JSON.stringify(page)};state.project='p1';render()`);
       const html=app.html();
       assert.ok(!/undefined|null|\[object Object\]/.test(html),`${locale}: ${page}`);
-      for(const route of ['ecosystem','scenarios','team'])assert.ok(html.includes(`data-page="${route}"`),`${page}: ${route} navigation`);
+      for(const route of (page==='team'?['team','settings']:['ecosystem','scenarios','team']))assert.ok(html.includes(`data-page="${route}"`),`${page}: ${route} navigation`);
       assert.equal(app.document.documentElement.lang,locale);
       assert.ok(app.document.title.endsWith(' · WorkX'));
     }
@@ -161,8 +166,8 @@ test('New workspace routes and project tabs render through the app in both langu
       app.run(`state.page='project';state.project='p1';state.projectTab=${JSON.stringify(projectTab)};render()`);
       assert.ok(!/undefined|null|\[object Object\]/.test(app.html()),projectTab);
     }
-    for(const teamTab of ['members','agents','activity']) {
-      app.run(`state.page='team';state.teamTab=${JSON.stringify(teamTab)};render()`);
+    for(const teamTab of ['general','members','permissions','data','connections','usage','activity']) {
+      app.run(`state.page='team';state.settingsTab=${JSON.stringify(teamTab)};render()`);
       assert.ok(!/undefined|null|\[object Object\]/.test(app.html()),teamTab);
     }
   }
@@ -368,7 +373,8 @@ test('App action dispatch reaches ecosystem and project handlers and persists th
   app.form('#team-context-form',{context:'Team context through app action'});
   await app.run("action({dataset:{action:'team-save-context',id:'p1'}},{})");
   assert.equal(app.run("data.projects.find(p=>p.id==='p1').sharedContext"),'Team context through app action');
-  const persisted=JSON.parse(app.values.get('workmates-prototype-v1'));
+  const stored=JSON.parse(app.values.get(spacesModel.SPACES_STORAGE_KEY));
+  const persisted=stored.spaces.find(s=>s.id===stored.activeSpaceId).data;
   assert.equal(persisted.ecosystemBindings[0].name,'App-level connector');
   assert.equal(persisted.projects.find(project=>project.id==='p1').sharedContext,'Team context through app action');
 });
@@ -404,4 +410,74 @@ test('Application startup recovers pending channel runs without the ordinary run
   assert.equal(app.run('data.channelRuns[0].executionStatus'),'interrupted');
   assert.notEqual(app.run('data.channelRuns[0].deliveryStatus'),'delivered');
   assert.ok(!app.html().includes(i18n.t('chat.completed')));
+});
+
+test('Workspace switch clears secret dialogs and scopes drafts and late task completion to the original tenant',()=>{
+  const app=appHarness();
+  app.run("state.selectedProject='p1';startTask('Organization task');state.draft='Org draft';state.codeDraft='Org code';state.connection={draft:{params:{appSecret:'SESSION_ONLY'}},stage:'params'}");
+  const context=app.run('workspaceContext()'),abandoned=app.run('state.connection'),taskId=app.run('state.task');
+  app.run("switchWorkspace('personal-alex')");
+  assert.equal(app.run('data.tasks.length'),0);assert.equal(app.run('state.draft'),'');assert.equal(app.run('state.selectedProject'),'');assert.equal(app.run('state.connection'),null);assert.equal(Object.keys(abandoned.draft.params).length,0);
+  app.run("state.draft='Personal draft'");app.timers.find(timer=>timer.delay===1600).callback();
+  assert.equal(app.run('data.tasks.length'),0);assert.equal(app.run('state.draft'),'Personal draft');assert.equal(context.data.tasks.find(t=>t.id===taskId).status,'done');
+  context.navigate('task',taskId);assert.equal(app.run('state.page'),'home');
+  app.run("switchWorkspace('wx-demo')");assert.equal(app.run('state.draft'),'Org draft');assert.equal(app.run('state.codeDraft'),'Org code');assert.equal(app.run('data.tasks[0].status'),'done');
+  app.run("switchWorkspace('personal-alex')");assert.equal(app.run('state.draft'),'Personal draft');
+  const stored=JSON.parse(app.values.get(spacesModel.SPACES_STORAGE_KEY)),reloaded=appHarness({spacesSaved:stored});assert.equal(reloaded.run('data.tenantId'),'personal-alex');assert.equal(reloaded.run('data.tasks.length'),0);
+});
+
+test('Create organization actions open an independent management tree and preserve personal connections',async()=>{
+  const app=appHarness();app.run("switchWorkspace('personal-alex')");
+  app.form('#space-connection-form',{name:'Personal MCP',provider:'mcp',authMode:'oauth',ownerScope:'member',agents:['a1']},{dataset:{tenant:'personal-alex'}});
+  await app.run("action({dataset:{action:'space-save-connection'}},{})");
+  app.form('#space-create-form',{name:'Product <Team>'});await app.run("action({dataset:{action:'space-save-organization'}},{})");
+  assert.equal(app.run('data.spaceType'),'organization');assert.equal(app.run('data.connections.length'),0);assert.equal(app.run('data.tasks.length'),0);assert.equal(app.run('data.teamMembers.length'),1);
+  assert.equal(app.run('state.page'),'team');assert.equal(app.run('state.settingsTab'),'general');assert.match(app.html(),/Product &lt;Team&gt;/);assert.doesNotMatch(app.html(),/Product <Team>/);
+  assert.equal(app.run("spaces.spaces.find(s=>s.id==='personal-alex').data.connections.length"),1);assert.equal(app.run('data.teamActivity[0].spaceEvent'),'created');
+  const stored=JSON.parse(app.values.get(spacesModel.SPACES_STORAGE_KEY)),reloaded=appHarness({spacesSaved:stored,hash:'#team/members'});assert.equal(reloaded.run('data.enterprise.name'),'Product <Team>');assert.equal(reloaded.run('state.settingsTab'),'members');
+});
+
+test('Invitation actions enforce tenant binding, accept once and block personal invitations',async()=>{
+  const app=appHarness({hash:'#team/members'});
+  app.form('#space-invite-form',{emails:'new@example.com',role:'admin'},{dataset:{tenant:'wrong'}});await app.run("action({dataset:{action:'space-save-invite'}},{})");assert.equal(app.run('data.invitations.length'),0);
+  app.form('#space-invite-form',{emails:'new@example.com',role:'admin'},{dataset:{tenant:'wx-demo'}});await app.run("action({dataset:{action:'space-save-invite'}},{})");assert.equal(app.run('data.invitations.length'),1);assert.equal(app.run('data.teamMembers.length'),3);assert.match(app.html(),/new@example.com/);
+  const id=app.run('data.invitations[0].id');await app.run(`action({dataset:{action:'space-accept-invite',id:${JSON.stringify(id)}}},{})`);
+  assert.equal(app.run('data.teamMembers.length'),4);assert.equal(app.run('data.teamMembers[3].role'),'admin');
+  await app.run(`action({dataset:{action:'space-accept-invite',id:${JSON.stringify(id)}}},{})`);assert.equal(app.run('data.teamMembers.length'),4);
+  const stored=JSON.parse(app.values.get(spacesModel.SPACES_STORAGE_KEY)),reloaded=appHarness({spacesSaved:stored,hash:'#team/members'});assert.match(reloaded.html(),/new@example.com/);
+  app.run("switchWorkspace('personal-alex')");await app.run("action({dataset:{action:'space-invite'}},{})");assert.equal(app.run('data.teamMembers.length'),1);assert.doesNotMatch(app.nodes.get('#overlay-root').innerHTML,/space-invite-form/);
+});
+
+test('Sharing and connection app actions save only current-tenant metadata, never secrets',async()=>{
+  const app=appHarness({hash:'#team/data'});
+  app.form('#space-sharing-form',{visibility:'selected',members:['m2'],projectId:''},{dataset:{tenant:'wx-demo'}});await app.run("action({dataset:{action:'space-save-sharing',collection:'library',id:'f1'}},{})");assert.equal(app.run('data.library[0].sharedMemberIds[0]'),'m2');
+  app.form('#space-connection-form',{name:'Team connector',provider:'feishu',authMode:'exchange',ownerScope:'space',agents:['a1','a2'],secret:'DO_NOT_SAVE'},{dataset:{tenant:'wx-demo'}});await app.run("action({dataset:{action:'space-save-connection'}},{})");
+  assert.equal(app.run('data.connections[0].ownerId'),'wx-demo');assert.equal(app.run('data.connections[0].status'),'needs_auth');assert.equal(app.run('data.connections[0].agentIds.length'),2);assert.ok(!app.values.get(spacesModel.SPACES_STORAGE_KEY).includes('DO_NOT_SAVE'));
+  app.run("switchWorkspace('personal-alex');navigate('team','connections')");assert.doesNotMatch(app.html(),/Team connector/);assert.equal(app.run('data.connections.length'),0);
+  app.run("switchWorkspace('wx-demo');navigate('team','connections')");assert.match(app.html(),/Team connector/);
+});
+
+test('Account preferences stay global and separate from organization configuration',async()=>{
+  const app=appHarness();app.run("navigate('settings','profile')");assert.match(app.html(),/space-profile-form/);assert.doesNotMatch(app.html(),/data-id="members"/);
+  app.form('#space-profile-form',{name:'Alex <Name>'});await app.run("action({dataset:{action:'space-save-profile'}},{})");assert.equal(app.run('spaces.user.name'),'Alex <Name>');assert.match(app.html(),/Alex &lt;Name&gt;/);
+  app.run("switchWorkspace('personal-alex');navigate('settings','general')");assert.match(app.html(),/data-space-locale/);assert.doesNotMatch(app.html(),/space-name-form/);
+  await app.run("action({dataset:{action:'space-toggle-notifications'}},{})");assert.equal(app.run('spaces.user.notifications'),false);
+  app.run("switchWorkspace('wx-demo');navigate('team','members')");assert.equal(app.run('spaces.user.notifications'),false);assert.equal(app.run('data.teamMembers[0].name'),'Alex <Name>');
+});
+
+test('Settings links dispatch their subsection, not only the top-level page',async()=>{
+  const app=appHarness();
+  for(const [page,id,content] of [['team','members','spaces.members'],['team','data','spaces.data'],['team','connections','spaces.integrations'],['settings','profile','spaces.profile'],['settings','spaces','spaces.mySpaces']]){
+    await app.run(`action({dataset:{action:'nav',page:${JSON.stringify(page)},id:${JSON.stringify(id)}}},{preventDefault(){}})`);
+    assert.equal(app.run('state.settingsTab'),id);assert.ok(app.html().includes(i18n.t(content)));
+  }
+});
+
+test('Notifications and workspace menu utilities remain scoped when moving to an empty personal space',()=>{
+  const app=appHarness();app.run("data.tasks.find(t=>t.id==='t2').name='ORG_ONLY_NOTICE';notifications()");
+  assert.match(app.nodes.get('#overlay-root').innerHTML,/ORG_ONLY_NOTICE/);
+  app.run("switchWorkspace('personal-alex');notifications()");
+  assert.doesNotMatch(app.nodes.get('#overlay-root').innerHTML,/ORG_ONLY_NOTICE|data-id="t1"|data-id="t2"/);
+  const menu=app.run("data.hideQuick=true;renderSpaceMenu(workspaceContext())");
+  assert.match(menu,/data-action="restore-quick"/);assert.match(menu,/data-action="shortcuts"/);assert.match(menu,/data-action="about"/);
 });

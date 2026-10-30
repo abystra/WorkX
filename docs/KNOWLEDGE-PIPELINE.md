@@ -1,6 +1,6 @@
 # Knowledge：Tika 解析与 Meilisearch 检索选型
 
-版本：0.2 · 调研日期：2026-10-30 · 状态：方案与 PoC 建议，尚未接入
+版本：0.3 · 调研日期：2026-10-30 · 状态：方案与 PoC 建议，尚未接入
 
 ## 结论
 
@@ -37,7 +37,7 @@
 }
 ```
 
-[配置 API 依据](https://www.meilisearch.com/docs/reference/api/settings/update-embedders)。示例中的占位文本不能原样发送，也不假设 Meilisearch 自动读取 WorkX `.env`；管理服务通过 Secret Resolver 装配，API key 不入 Git、浏览器和日志。若选支持本地／受控 REST 模型服务的 Embedder，则由对应服务身份和网络策略管理，不必使用该示例 Provider。
+[配置 API 依据](https://www.meilisearch.com/docs/reference/api/settings/update-embedders)。示例中的占位文本不能原样发送，也不假设 Meilisearch 自动读取 WorkX `.env`。生产集成优先选受控 Embedding Gateway，Meilisearch 只持相应服务认证材料，上游模型 key 由 Gateway／Broker 按统一密文方案管理；此原生 Provider 示例仅说明配置形态，不表示另建长期 key 副本。所有模式不向 Agent E2B、Git、浏览器和日志暴露原值。若选支持本地／受控 REST 模型服务的 Embedder，则由对应服务身份和网络策略管理，不必使用该示例 Provider。
 
 入库的一条 document 是 WorkX 的一个已切分 chunk，包含 id、source_id、revision、title、content、locator 和 ACL。documentTemplate 只选应参与 Embedding 的字段，不能把密钥、ACL 标识或管理元数据误送入模型。
 
@@ -128,3 +128,5 @@ Tika REST／命令行等接入方式见 [官方入口](https://tika.apache.org/d
 检索用相同授权语料、chunk 策略和查询集比较 A 与 B：人名／编号／缩写、精确短语、中文分词、语义问答、过滤、高亮、Top-K 召回、延迟、Embedding 成本和索引耗时。验证两个租户同名文档不串数据，撤销后 snippet／引用／缓存不再可用。
 
 最终以评测选择一个首版 SearchProvider，并记录版本、许可、模型与运维成本；不依据“搜索引擎支持 AI”就省掉解析、版本、ACL 或质量验收。
+
+租户过滤同时适用于 personal／organization；同一全局 User 跨空间搜索也不合并授权，见 [租户模型](TENANCY-MODEL.md)。密钥与代理规则以 [统一凭证方案](CREDENTIAL-SOLUTION.md) 为准。

@@ -1,3 +1,4 @@
+import { spacesMessages } from './messages-spaces.js';
 import { saasMessages } from './messages-saas.js';
 import { mainMessages } from './messages-main.js';
 import { actionMessages } from './messages-actions.js';
@@ -10,12 +11,12 @@ import { channelMessages } from './messages-channel.js';
 
 export const SUPPORTED_LOCALES = ['zh-CN', 'en'];
 export const LOCALE_STORAGE_KEY = 'workx-locale';
-export const messages = { ...actionMessages, ...secondaryMessages, ...mainMessages, ...workspaceMessages, ...ecosystemMessages, ...teamMessages, ...connectionMessages, ...channelMessages, ...saasMessages };
-let locale = 'zh-CN';
+export const messages = { ...actionMessages, ...secondaryMessages, ...mainMessages, ...workspaceMessages, ...ecosystemMessages, ...teamMessages, ...connectionMessages, ...channelMessages, ...saasMessages, ...spacesMessages };
+let locale = 'en';
 try {
   const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
   if (SUPPORTED_LOCALES.includes(saved)) locale = saved;
-} catch { /* Keep Chinese when storage is unavailable. */ }
+} catch { /* Keep English when storage is unavailable. */ }
 export const getLocale = () => locale;
 export function setLocale(value) {
   if (!SUPPORTED_LOCALES.includes(value)) return false;

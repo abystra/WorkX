@@ -1,6 +1,6 @@
 # WorkX 总体架构
 
-版本：0.4 · 2026-10-30 · 目标设计
+版本：0.6 · 2026-10-30 · 目标设计
 
 ## 架构结论
 
@@ -12,7 +12,7 @@
 flowchart TB
   UI["React + TypeScript\n任务 / 文件 / Wiki / 成果编辑 / 沙箱状态"]
   CH["飞书 / 企业微信\n各自的平台适配器"]
-  API["Python 3.12+ / FastAPI\n认证 · 租户 · 组织 · 角色 · 项目 · 伙伴 · Session / Task"]
+  API["Python 3.12+ / FastAPI\n认证 · 个人/组织空间 · 成员 · 角色 · 项目 · 伙伴 · Session / Task"]
   DB[("PostgreSQL + pgvector\n业务事实 / 事件 / 授权 / 知识索引")]
   Q["Outbox → Redis Streams\n任务队列 / 知识队列 / 投递队列"]
   TW["Task Worker\n租约 / E2B Adapter / Runner Adapter"]
@@ -20,7 +20,8 @@ flowchart TB
   KW["Python Knowledge Workers\n解析 / Embedding / Rerank / Wiki 草稿 / 增量索引"]
   GW["WorkX Tool Gateway\n知识检索 / 生态工具 / 资源授权"]
   CB["Credential Broker\n连接归属 / 短期票据 / 刷新与撤销"]
-  AUTH["SSO / 外部授权 / 密钥系统\nKeycloak / Nango候选 / OpenBao候选"]
+  CRW["Credential Worker\n受控原值读取 / 签名 / CLI 隔离执行"]
+  AUTH["SSO / 外部授权 / 密钥系统\n原生OAuth Adapter / Keycloak / OpenBao Transit"]
   PARSE["Parser Adapter\nTika候选 + 按需OCR"]
   SEARCH["可选SearchProvider\nMeilisearch评测候选"]
   OSS[("S3 兼容对象存储\n原文件 / 成果版本 / 知识快照 / 恢复材料")]
@@ -41,12 +42,18 @@ flowchart TB
   Q --> KW
   Q --> CW
   TW -->|E2B SDK / WorkX Runner 协议| RUN
-  RUN --> MODEL
+  MG["Model Gateway\n模型凭证 / 预算 / 流式适配"]
+  RUN --> MG --> MODEL
+  MG --> CB
   RUN -->|受限 MCP 工具| GW
   GW --> DB
   GW --> CH
   GW --> CB
+  GW --> CRW
+  CRW --> CB
+  CW --> CB
   CB --> AUTH
+  CB --> DB
   KW --> PARSE
   KW -.-> SEARCH
   GW -.-> SEARCH
@@ -56,7 +63,7 @@ flowchart TB
   API <--> OSS
 ```
 
-图中箭头表示逻辑依赖，不代表沙箱可以直连数据库或渠道凭证。只有 API、受信 Worker 和 Tool Gateway 能访问相应的后端存储与外部凭证。
+图中箭头表示逻辑依赖，不代表沙箱可以直连数据库或渠道凭证。API、Broker、受信 Worker 和 Gateway 按各自服务身份访问获准的存储与凭证，不因此共用全部解密权限。
 
 ## 语言与模块职责
 
@@ -70,6 +77,8 @@ flowchart TB
 | Knowledge Workers | Python | 解析、分块、Embedding、Rerank、索引、Wiki 草稿维护 | 与某个临时沙箱共享可写知识目录 |
 | Channel Worker | Python | 平台验签／解密适配、去重、身份映射、发送策略、回执与重试 | 用平台消息直接绕过 WorkX 资源权限 |
 | Tool Gateway | Python，首版可部署在 API 服务内 | MCP 工具、权限／额度校验、外部 API 调用、操作去重和审计 | 将长期平台 Secret 下发沙箱 |
+| Model Gateway | 可信区独立服务进程 | 模型认证、受限代理、流式适配、预算与用量 | 将真实模型 API key 下发 Runner |
+| Credential Worker | 可信区隔离执行单元 | 经审核的原值读取、签名和 CLI 程序；按实例装配 env／文件 | 执行 Agent 任意 shell、跨租户复用秘密环境 |
 | 持久层 | PostgreSQL / pgvector / S3 / Redis | 业务状态、检索索引、文件版本、异步分发 | 让 Redis 或沙箱磁盘独占保存唯一成果 |
 
 ## 相比原图的调整
@@ -82,12 +91,12 @@ flowchart TB
 | /knowledge RO | 改为 `/mnt/knowledge/<revision>` 本地只读副本，不能用 E2B beta 卷模拟只读。 |
 | /workspace RW | 改为 `/mnt/session/workspace`；输入和交付分置 uploads／outputs；单 Session 独占。 |
 | Sandbox ↔ Knowledge Workers | Worker 读写持久存储，Task Worker 选择快照放入沙箱；动态检索经过 Knowledge API／MCP。 |
-| User / Auth | 扩展成租户、用户、成员、部门、角色、资源授权和外部身份映射。 |
+| User / Auth | 扩展成 personal／organization 租户、全局用户、成员、角色、资源授权和外部身份映射；部门仅可选人员属性，无默认继承。 |
 | Event Stream | 持久事件日志 + SSE 补发；运行状态、成果状态、渠道回传状态分别维护。 |
 
 ## 四条核心链路
 
-1. **工作台任务**：登录成员选择当前企业、项目与伙伴 → API 校验权限和额度 → 同事务写任务与 outbox → Task Worker 获取租约 → 准备快照／工作区 → E2B Runner 执行 → 流式事件落库 → 成果版本入库 → 工作台显示可审阅成果。
+1. **工作台任务**：登录成员选择当前个人／组织空间、项目与伙伴 → API 校验权限和额度 → 同事务写任务与 outbox → Task Worker 获取租约 → 准备快照／工作区 → E2B Runner 执行 → 流式事件落库 → 成果版本入库 → 工作台显示可审阅成果。
 2. **平台机器人任务**：平台事件先校验并持久化去重 → 独立于长任务完成平台要求的确认响应 → 映射成员或显式配置的受限服务主体 → 同一任务服务 → 执行完成 → delivery outbox → Channel Worker 向原绑定和会话回传。平台响应窗口按接入方式单独实现，不等 Agent 执行完成才应答。
 3. **知识处理**：上传原件 → 扫描与解析 → 分块、向量和权限元数据 → 发布知识版本 → 生成带来源的 Wiki 草稿 → 按权限审阅发布。任务固定 knowledge revision，正在执行时不偷偷换底稿。
 4. **成果编辑**：Runner 输出待登记文件清单 → Task Worker 独立验证文件、大小、路径与内容类型 → 上传对象存储 → 数据库登记版本与引用 → 编辑器通过 Artifact API 创建新版本；模型成功结束不等于成果已发布。
@@ -98,6 +107,7 @@ flowchart TB
 apps/web/                 React + TypeScript，后续逐页替换原型
 services/api/             FastAPI，领域服务、REST、SSE、Tool Gateway
 services/workers/         task / knowledge / channel 消费进程
+services/gateways/        model / credential-worker 可信区进程与隔离适配
 runtime/claude-runner/    E2B 内 Python Runner，SDK Adapter 与协议
 infra/e2b/               模板构建、用户权限、网络策略与验证脚本
 packages/contracts/      JSON Schema、事件枚举与 TypeScript 生成类型
@@ -120,6 +130,20 @@ MCP、Skill、Connector 与实际 Connection 分开建模；Skill 不持有长�
 
 ## 异构认证与 Skill 运行配置
 
-不能让 Nango 成为所有连接的强制入口。Connector Registry 显式声明 transport、auth_mode 和 execution_location：无认证 HTTP MCP 走普通 Adapter，静态 Header 走 Secret Resolver，OAuth 按能力选择 Nango／原生 Adapter，本地 stdio 和 Skill env／文件配置由 Runtime Launcher 管理。具体判定与门槛见 [Nango 评审](NANGO-ADOPTION.md)，运行装配与隔离见 [Skill Runtime](SKILL-RUNTIME-CONTRACT.md)。
-
+当前不引入 Nango，连接授权采用原生 OAuth／平台 Adapter。Connector Registry 声明 transport、auth_mode、usage 与 execution_location：无认证走普通 Adapter，静态／OAuth 走 Gateway，换取／签名和需要原值的程序在可信 Worker。Skill env／文件只按 [运行契约](SKILL-RUNTIME-CONTRACT.md) 装配，不向 Agent E2B 下发真实 Secret。
 Meilisearch 候选已核实可配置自动 Embedder 和语义／混合检索，下一阶段优先验证其作为主检索层；WorkX 保留文件解析与业务切块。模型、索引及 ACL 验证通过前，原 pgvector 基线作为对照／回退，不默认建设两套自动向量化管线。
+
+## 统一租户与审查结论
+
+[个人／组织租户](TENANCY-MODEL.md) 共用数据、权限、凭证、用量和执行模型；个人空间有唯一本人 owner，企业连接不能读取个人空间凭证。加入组织不搬移已有数据，切换空间不改变后台任务归属。
+
+本轮统一了密文存储、模型与工具出口、渠道服务解密分权、needs_auth 新 Attempt 恢复、原生 OAuth 与 CLI sidecar 边界。详细修正、优先级和待验证风险见 [架构审查记录](ARCHITECTURE-REVIEW.md)。
+
+
+## 空间制 SaaS 与前端管理层级
+
+个人设置属于全局 User；组织管理属于当前 organization Tenant，二者采用各自二级导航。账号菜单承载空间切换、创建组织与邀请入口；日常协作仍在工作台／项目。个人空间使用相同资源与连接基础，但无邀请、成员扩展或部门权限。
+
+后端分离 UserProfile／Tenant／Membership／Invitation／ResourceGrant／Connection。空间创建不复制个人数据；接受邀请只建立 Membership；角色管理权与资源访问权分开，部门不参与首版权限继承。详细流程及 Schema 约束见 [租户规范](TENANCY-MODEL.md)。
+
+本地原型以独立空间 data 对象演示上述入口，原 WorkX 记录留在旧组织。浏览器命名空间、角色按钮限制与共享范围元数据不替代服务端鉴权、RLS 或真实 Vault；真实后端阶段不因此跳过安全与恢复验证。

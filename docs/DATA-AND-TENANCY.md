@@ -1,10 +1,10 @@
 # 数据、知识与租户设计
 
-版本：0.3 · 2026-10-30 · 目标设计
+版本：0.5 · 2026-10-30 · 目标设计
 
 ## SaaS 基础
 
-承接 [SaaS 产品基础](../workmates-prototype/docs/SAAS-FOUNDATION.md)：全局 User 不直接归属唯一企业，通过 Membership 加入 Tenant；Department 组织人员；企业 Role 控制管理操作；ResourceGrant 决定具体资源范围。企业管理员不因此自动可读全部业务内容。
+统一采用 [个人／组织租户](TENANCY-MODEL.md)：User 是全局身份，每人有唯一 personal Tenant，可再加入 organization Tenant；两者均通过 Membership、Role 和 ResourceGrant 约束。Department 仅 organization 使用，首版仅为可选成员属性，不继承权限。企业管理员不因此自动可读成员私有或个人空间内容。
 
 首版基线用 PostgreSQL 关系数据、pgvector 检索和 S3 兼容对象存储，保留统一 Knowledge API／SearchProvider。新增 Tika 通用解析候选与 Meilisearch 主检索候选，按 [Knowledge 选型](KNOWLEDGE-PIPELINE.md) 评测后确定一个首版检索实现，不默认同时维护两套混合检索。
 
@@ -13,7 +13,7 @@ erDiagram
   USER ||--o{ MEMBERSHIP : joins
   TENANT ||--o{ MEMBERSHIP : contains
   TENANT ||--o{ DEPARTMENT : owns
-  DEPARTMENT ||--o{ MEMBERSHIP : groups
+  DEPARTMENT o|--o{ MEMBERSHIP : groups
   ROLE ||--o{ MEMBERSHIP : assigns
   TENANT ||--o{ AGENT : owns
   TENANT ||--o{ PROJECT : owns
@@ -35,14 +35,15 @@ erDiagram
 
 | 对象 | 关键字段／约束 |
 | --- | --- |
-| tenants | id、name、status、plan_id、created_at；企业状态可阻止创建新执行。 |
-| users / memberships | users 为全局登录身份；memberships 有 tenant_id、user_id、role_id、department_id、status；同租户用户唯一。 |
-| departments / roles | 部门有 tenant_id、parent_id，防循环、同级重名；企业角色预设 owner/admin/member，所有权转移独立事务。 |
-| resource_grants | tenant_id、resource_type、resource_id、principal_type、principal_id、actions；授权给成员／部门／服务主体需明确继承规则。首版可先只支持成员与项目成员集合。 |
-| agents / agent_versions | 企业拥有伙伴；版本固定指令、模型配置、工具目录、Skills、发布人；执行引用不可变版本。 |
+| tenants | id、type=personal/organization、owner_user_id、name、status、plan_id、authz_epoch、created_at；personal owner 唯一，停用阻止新执行。 |
+| users / memberships | users 为全局登录身份；memberships 有 tenant_id、user_id、role_id、department_id、status；同租户用户唯一；personal 仅本人的 owner 关系。 |
+| departments / roles | 部门仅组织可用，首版可选成员属性，层级兼容不参与权限；空间角色预设 owner/admin/member，所有权转移独立事务。 |
+| invitations | tenant_id、normalized_email、role、invited_by、token_digest、expires_at、status、consumed_at；pending 去重、一次消费；接受前验证邮箱与当前组织策略。 |
+| resource_grants | tenant_id、resource_type、resource_id、principal_type、principal_id、actions；首版支持本人、指定成员、项目成员、组织 active 成员集合及显式服务主体，不支持部门继承；visibility 不自动扩大写权限。 |
+| agents / agent_versions | 租户拥有伙伴；版本固定指令、模型配置、工具目录、Skills、发布人；执行引用不可变版本。 |
 | projects / project_members | 项目和成员资源范围，不把可见项目列表当作真正的访问限制。 |
 | sessions | tenant_id、project_id、agent_id、principal_scope、source_scope、status；上下文归属和授权范围清晰。 |
-| tasks | session_id、agent_version_id、source_message_id、execution_status、row_version、created_by；任务目标与成果关联。 |
+| tasks | session_id、agent_version_id、source_message_id、execution_status、row_version、created_by、resource_owner、assignee；数据所有者与任务负责人分开，不因分工转移权限。 |
 | attempts | task_id、attempt_no、sandbox_id、claude_session_id、lease_owner、lease_expires_at、fencing_token、config_revision、knowledge_revision、status；同任务序号唯一。 |
 | task_events | tenant_id、task_id、seq、attempt_id、runner_event_id、type、payload、occurred_at、received_at；任务 seq 唯一，Runner 事件重复可去重。 |
 | integration_bindings | tenant_id、platform、method、external_enterprise_id、agent_id、capabilities、credential_ref、revision、status；配置与凭证版本分开。 |
@@ -64,11 +65,11 @@ API 从已验证登录会话与 Membership 决定当前 tenant_id，不信任请
 
 首版采用应用层资源授权加数据库 RLS。连接池事务内设置可信租户上下文、事务后清理；受限应用角色不具备 BYPASSRLS，表所有者与应用角色分离。后台批处理通过显式管理入口和审计访问，不复用一个可读取所有企业的 Agent 凭证。RLS 策略与事务连接池行为需实际测试。
 
-对象存储前缀如 `tenants/<tenant_id>/artifacts/<id>/<version>/...` 只用于组织数据，不自动等于访问控制。下载签名在服务端鉴权后短期签发；不把长期 bucket 凭证或跨租户列表权限交给沙箱。API 支持 HTTP 条件写入／版本冲突，编辑器不会覆盖他人已保存版本。
+对象存储前缀如 `tenants/<tenant_id>/artifacts/<id>/<version>/...` 仅是个人／组织租户数据的命名方式，不自动等于访问控制。下载签名在服务端鉴权后短期签发；不把长期 bucket 凭证或跨租户列表权限交给沙箱。API 支持 HTTP 条件写入／版本冲突，编辑器不会覆盖他人已保存版本。
 
 向量检索必须在召回时施加 tenant 与资源过滤，而不是全库检索后只在展示阶段过滤。Rerank、缓存、引用解析也沿用同一范围；缓存 key 包含租户、授权范围版本、知识 revision 和 embedding profile。权限撤销后停止新查询并清缓存；已有沙箱包含撤销材料时终止或重新建立授权快照，不能宣称模型已经“忘记”读取过的数据。
 
-连接、授权会话、密钥版本与凭证租约的数据对象见 [凭证架构](CREDENTIALS-AND-CONNECTORS.md)。业务库保存归属、scope、状态和密钥引用；OAuth 刷新责任方唯一，不把所有 Token 复制到多个系统。
+连接、授权请求、PendingOperation、密钥版本与凭证租约见 [凭证实体](CREDENTIALS-AND-CONNECTORS.md)。PG 的普通业务表保存归属与引用，受限 SecretVersion 表保存加密数据，OpenBao Transit 包装密钥；不保存上游明文或额外 KV 副本。刷新责任方为唯一原生 Adapter。
 
 ## 知识与 Wiki 的发布链路
 
@@ -85,8 +86,12 @@ API 从已验证登录会话与 Membership 决定当前 tenant_id，不信任请
 
 成果状态：`staging → available → superseded / deleted`；不合格内容可进入 `rejected`。Task 只有在所需成果登记为 available 后才满足交付条件；纯文本任务也将最终文本作为可持久化结果保存。
 
-恢复包包含工作区清单、SDK 会话材料及配置元数据，标记敏感等级并按租户加密、限制下载。恢复包不是普通成果，不默认展示给所有项目成员；到期清理与审计策略独立于用户文件。
+恢复包只包含审核允许的工作区清单、SDK 会话材料及非敏感配置元数据，排除 Secret／票据／临时认证缓存，标记敏感等级并按租户加密、限制下载。恢复包不是普通成果，不默认展示给所有项目成员；到期清理与审计策略独立于用户文件。
 
-保留期、数据驻留区域、备份恢复目标与企业删除策略需在生产部署前确认。企业停用停止新任务和新工具操作；删除采用可审计状态机，覆盖对象文件、向量、缓存、恢复包和 E2B 活跃／暂停资源。
+保留期、数据驻留区域、备份恢复目标与企业删除策略需在生产部署前确认。个人或组织租户停用停止新任务和新工具操作；删除采用可审计状态机，覆盖对象文件、向量、缓存、恢复包和 E2B 活跃／暂停资源。
 
 沙箱文件布局按 [文件系统规范](SANDBOX-FILESYSTEM.md) 执行：S3 是原件与成果的持久事实来源；`/mnt` 目录不自动持久化，可选 `/mnt/persist` 卷不替代权限与版本登记。
+
+个人空间、组织成员私有与组织共享凭证均带明确 tenant；不按全局用户复制或自动迁移 Secret。注册、成员限制、跨标签页切换、离职与删除按 [租户生命周期](TENANCY-MODEL.md) 验收。
+
+产品路由、空间切换、邀请生命周期及本地命名空间的实现边界见 [空间制 SaaS](TENANCY-MODEL.md#信息架构与入口)。原型的 resourceOwnerId 表示资源归属，旧任务 ownerId 表示业务负责人；正式 Schema 使用明确命名避免混同。

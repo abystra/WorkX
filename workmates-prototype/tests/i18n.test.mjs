@@ -1,3 +1,5 @@
+import * as spacesModel from '../dist/spaces-model.js';
+import * as spacesUI from '../dist/spaces.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -30,6 +32,7 @@ function appHarness() {
     addEventListener:(type,fn)=>handlers.set(type,fn)
   };
   const context = vm.createContext({
+    ...spacesModel,...spacesUI,
     ...i18n,...ecosystem,...team,...connection,...channelModel,...channel,renderSecondary,initialData,suggestions,icon,avatar,logo,document,
     localStorage:storage,structuredClone,console,innerWidth:1280,
     window:{scrollY:0,scrollTo(){},matchMedia:()=>({addEventListener(){}}),addEventListener(){}},
@@ -41,28 +44,27 @@ function appHarness() {
   return {context,document,nodes,handlers,run:script=>vm.runInContext(script,context),html:()=>nodes.get('#app').innerHTML};
 }
 
-test('Chinese is the default, unknown stored locales fall back, supported choices survive reload',async()=>{
+test('English is the default, unknown stored locales fall back, saved Chinese choices survive reload',async()=>{
   values.clear();
   let fresh=await import(`../dist/i18n.js?case=${++serial}`);
-  assert.equal(fresh.getLocale(),'zh-CN');
+  assert.equal(fresh.getLocale(),'en');
   values.set('workx-locale','fr');
   fresh=await import(`../dist/i18n.js?case=${++serial}`);
-  assert.equal(fresh.getLocale(),'zh-CN');
-  assert.equal(fresh.setLocale('en'),true);
-  assert.equal(values.get('workx-locale'),'en');
+  assert.equal(fresh.getLocale(),'en');
+  assert.equal(fresh.setLocale('zh-CN'),true);
+  assert.equal(values.get('workx-locale'),'zh-CN');
   const reloaded=await import(`../dist/i18n.js?case=${++serial}`);
-  assert.equal(reloaded.getLocale(),'en');
+  assert.equal(reloaded.getLocale(),'zh-CN');
   assert.equal(reloaded.setLocale('fr'),false);
-  assert.equal(reloaded.getLocale(),'en');
-  reloaded.setLocale('zh-CN');
+  assert.equal(reloaded.getLocale(),'zh-CN');
 });
 
-test('Blocked storage still supports a session language choice',async()=>{
+test('Blocked storage falls back to English and still supports a session language choice',async()=>{
   globalThis.localStorage={getItem(){throw Error('blocked')},setItem(){throw Error('blocked')}};
   const fresh=await import(`../dist/i18n.js?case=${++serial}`);
-  assert.equal(fresh.getLocale(),'zh-CN');
-  fresh.setLocale('en');
-  assert.equal(fresh.t('Home'),'Home');
+  assert.equal(fresh.getLocale(),'en');
+  fresh.setLocale('zh-CN');
+  assert.equal(fresh.t('Home'),'首页');
   globalThis.localStorage=storage;
 });
 
@@ -76,7 +78,7 @@ test('Both catalogs are complete and substitutions preserve arbitrary user conte
   for(const file of ['app.js','secondary.js']) {
     const source=readFileSync(new URL('../dist/'+file,import.meta.url),'utf8');
     for(const match of source.matchAll(/\b(?:tr|actionText|t)\(\s*(['"])([^'"\n]+)\1/g)) {
-      if(!['suggestion.','workspace.'].includes(match[2]))assert.ok(i18n.messages[match[2]],`${file}: ${match[2]}`);
+      if(!['suggestion.','workspace.','spaces.'].includes(match[2]))assert.ok(i18n.messages[match[2]],`${file}: ${match[2]}`);
     }
   }
   for(const file of ['ecosystem.js','connection.js','connection-model.js','channel.js','channel-model.js']) {
@@ -98,10 +100,10 @@ test('Every route renders in both languages; title and html language agree',()=>
   const app=appHarness();
   for(const locale of ['zh-CN','en']) {
     i18n.setLocale(locale);
-    for(const page of ['home','new','detail','task','automations','projects','project','library','hub','code','ecosystem','scenarios','team','inbox']) {
+    for(const page of ['home','new','detail','task','automations','projects','project','library','hub','code','ecosystem','scenarios','team','settings','inbox']) {
       app.run(`state.page=${JSON.stringify(page)};state.task='t2';state.project='p1';render()`);
       const html=app.html();
-      assert.ok(html.includes(locale==='zh-CN'?'切换语言':'Change language'),page);
+      assert.ok(html.includes(i18n.t(['team','settings'].includes(page)?'spaces.settings':'language.choose')),page);
       assert.ok(!/undefined|null|\[object Object\]/.test(html),page);
       assert.equal(app.document.documentElement.lang,locale);
       assert.ok(app.document.title.endsWith(' · WorkX'));

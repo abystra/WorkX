@@ -1,19 +1,26 @@
 # API、事件与执行状态约定
 
-版本：0.3 · 2026-10-30 · 设计协议，尚无运行实现
+版本：0.5 · 2026-10-30 · 设计协议，尚无运行实现
 
 以下路径、字段和事件是 WorkX 自建契约，不是 Claude 或 E2B 的官方 HTTP API。REST 数据契约将由 FastAPI OpenAPI 与 JSON Schema 发布，前端生成 TypeScript 类型。
 
 ## 前端与控制面
 
-API 前缀 `/api/v1`。租户路由仍要校验登录主体是否属于该租户；路径中的租户 ID 不构成授权。
+API 前缀 `/api/v1`。租户包含 personal／organization，遵循 [统一租户模型](TENANCY-MODEL.md)。路径 tenant_id 是选择器，服务端核验 User、Membership 与租户状态；不使用全局“当前空间”Cookie 无条件覆盖多标签页请求。
 
 | 方法与路径 | 语义 |
 | --- | --- |
-| GET /me / GET /me/tenants | 当前用户与可加入的企业空间列表 |
-| GET/PATCH /tenants/{tenant_id} | 企业信息；管理权限与版本冲突检查 |
-| GET/POST /tenants/{tenant_id}/departments | 部门列表与新增；PATCH/DELETE 子路径维护层级与空部门删除 |
-| GET/POST /tenants/{tenant_id}/members | 成员与邀请；PATCH 成员角色／状态，所有权转移使用独立动作 |
+| GET /me / GET /me/tenants | 当前用户、personal_tenant_id 与已加入空间（含 type／role／plan）列表 |
+| POST /tenants | 创建 organization；personal 由注册流程幂等创建，不能借此重复创建 |
+| GET/PATCH /tenants/{tenant_id} | 空间信息；管理权限与版本冲突检查；type／personal owner 不能用普通 PATCH 改动 |
+| GET/POST /tenants/{tenant_id}/departments | 可选人员属性扩展；不参与首版权限继承；personal 不支持 |
+| GET/PATCH /me/profile / preferences | 全局用户资料与偏好；不更新组织设置或外部平台授权 |
+| GET /tenants/{tenant_id}/members | 当前空间成员目录；按读取权限返回脱敏成员信息，不枚举全局用户 |
+| GET/PATCH /tenants/{tenant_id}/members/{id} | organization 成员角色／状态；personal 不允许新增成员，所有权转移走独立流程 |
+| GET/POST /tenants/{tenant_id}/invitations | organization 邀请列表／批量创建；邮箱、角色、配额与邀请权限校验；邮件异步投递 |
+| POST /tenants/{tenant_id}/invitations/{id}/cancel | 撤销仍有效的邀请，一次消费仲裁；不撤回已加入的 Membership |
+| POST /invitations/accept | 已登录且邮箱已核验的用户提交一次性邀请凭据，原子建立目标 Membership；不迁移个人数据 |
+| GET/PATCH /tenants/{tenant_id}/resources/{type}/{id}/sharing | 固定空间归属，资源管理权限、active 成员／项目和具体 actions 校验；无部门继承 |
 | GET /tenants/{tenant_id}/roles | 预设角色权限；首版不开放任意自定义权限 |
 | POST /tenants/{tenant_id}/sessions | 建立业务会话、伙伴和资源范围 |
 | POST /tenants/{tenant_id}/tasks | 提交目标、session_id、项目及附件引用；需 Idempotency-Key，返回 202 + task_id |
@@ -56,7 +63,7 @@ Worker 提交 RunSpec：
 
 目录常量见 [沙箱文件系统规范](SANDBOX-FILESYSTEM.md)，成果采集根为 `/mnt/session/outputs`。数值只是契约示例，不是供应商固定限制。模型 ID、工具策略和票据由可信配置装配，不接受客户端原样传入的 cwd／resume_ref／工具清单。敏感票据不出现在日志和业务事件中。
 
-Runner 输出单行事件帧：`protocol_version, runner_event_id, attempt_id, fencing_token, type, payload`。支持 heartbeat、assistant_delta、tool_started、tool_finished、approval_requested、artifact_candidate、sdk_result、runner_error。SDK 原始消息仅在受限诊断存储保存，不直接透传给前端。
+Runner 输出单行事件帧：`protocol_version, runner_event_id, attempt_id, fencing_token, type, payload`。支持 heartbeat、assistant_delta、tool_started、tool_finished、approval_requested、auth_required、artifact_candidate、sdk_result、runner_error；auth_required 只报告缺少逻辑依赖，由控制面核验并创建授权请求。SDK 原始消息默认不持久保存；如需诊断，先脱敏并以受限保留期存储，不直接透传前端。
 
 Worker 校验帧版本、长度、Attempt、租约和 fencing token；去重后生成业务 seq。Runner 自带序号不能覆盖数据库顺序。进程退出码 0 和 sdk_result success 都只是执行报告；成果验证、授权写操作及最终状态由控制面决定。
 
@@ -83,7 +90,7 @@ Worker 校验帧版本、长度、Attempt、租约和 fencing token；去重后�
 | assistant.delta | 文本增量，前端按事件去重追加；可合并短片段控制体积 |
 | tool.started / finished | 经脱敏的工具进度，不默认显示完整参数或返回值 |
 | approval.requested / resolved | 待人工确认和处理结果 |
-| auth.required / resolved / expired | 执行中缺少个人授权：只含 Connector、所需 scope 与授权入口句柄，不含凭证 |
+| auth.required / resolved / expired | 缺少本租户依赖：含 authorization_request_id、逻辑 Connector／scope 与脱敏状态；不含 OAuth 链接里的临时秘密 |
 | artifact.staged / published / rejected | 成果采集和可用状态 |
 | task.finalizing / succeeded / failed / interrupted / cancelled | 业务执行阶段，不与投递合并 |
 | delivery.queued / sending / delivered / failed / unknown / blocked | 平台回传、回执及异常 |
@@ -96,12 +103,14 @@ SSE `id` 使用本任务 seq；数据库事件日志是补发来源。流消费�
 ```mermaid
 stateDiagram-v2
   [*] --> queued
+  queued --> needs_auth: preflight 缺依赖
   queued --> provisioning
+  provisioning --> needs_auth: 准备阶段缺依赖
   provisioning --> running
   running --> awaiting_approval
   awaiting_approval --> running
   running --> needs_auth
-  needs_auth --> running: 授权完成，原 Attempt 继续
+  needs_auth --> queued: 有效授权后调度新 Attempt
   needs_auth --> failed: 授权超时或被拒绝
   needs_auth --> cancel_requested
   running --> finalizing
@@ -124,7 +133,9 @@ stateDiagram-v2
   cancelled --> queued: 显式重试，新 Attempt
 ```
 
-`needs_auth` 表示执行中发现发起人缺少某项个人授权：沙箱暂停或保持租约，向 WorkX 及来源会话推送授权卡片，授权完成后原 Attempt 继续，不计为失败；挂起时长计入超时策略。处理方式见 [凭证落地方案](CREDENTIAL-SOLUTION.md#用户交互)。
+`needs_auth` 是 Task 等待状态，不是长期占着 Worker 的活动执行。保存授权请求与 PendingOperation，停止新副作用，撤销当前票据；若已有 Attempt，则中断并排空 SDK 消息、终结为 waiting_auth、释放租约。等待期限独立于单次运行 wall-time；同 Session 的后续任务排队，不与待恢复工作并发写工作区。
+
+有效回调同事务检查 tenant／subject／scope、请求未消费、Task 仍等待且未过期／取消，然后写 auth.resolved 与调度 outbox；重复回调最多使相同任务入队一次。仍用原 Task，但创建新 Attempt／fencing token／票据。兼容检查点可恢复；材料缺失、未知外部副作用或策略变化时进入明确的恢复／核对流程，不承诺原进程原地继续。授权拒绝／超时进入 failed（带原因），取消作废关联授权请求，晚到回调不复活任务。详见 [凭证规范](CREDENTIAL-SOLUTION.md#needs_auth-挂起与恢复)。
 
 Task 保留聚合状态，Attempt 记录每次尝试终结原因；重试不覆写旧 Attempt。`cancel_requested` 与终结提交通过 row_version/CAS 仲裁，已提交 succeeded 后的取消不倒退状态；取消先提交则晚到 success 不可覆盖。已发布部分成果仍保留版本记录。超时、预算耗尽、模型故障、模板错误、权限撤销与采集失败分别记录 error_code，不都归为“AI 失败”。
 
@@ -138,11 +149,12 @@ Redis 消费组配合可重放 outbox 分发，Worker 心跳续租，Reconciler 
 
 ## 外部授权接口增补
 
-统一凭证策略见 [凭证与 Connector](CREDENTIALS-AND-CONNECTORS.md)，落地分类与分期见 [凭证落地方案](CREDENTIAL-SOLUTION.md)。以下均是 WorkX 拟定接口，前端不获取原始 Provider Token：
+统一凭证策略见 [凭证与 Connector](CREDENTIALS-AND-CONNECTORS.md)，落地分类与分期见 [凭证落地方案](CREDENTIAL-SOLUTION.md)。以下均是 WorkX 拟定接口，前端不获取原始 Provider Token。接口中的个人／共享指本租户的 owner 范围，不允许跨个人和组织空间使用连接：
 
 | 方法与路径 | 语义 |
 | --- | --- |
 | POST /tenants/{tenant_id}/connections/authorization-sessions | 指定 Provider、个人／企业主体、拟申请 scope，核验后返回一次性授权交互句柄 |
+| GET /tenants/{tenant_id}/authorization-requests/{id} | 已登录的指定主体获取授权要求／短期交互入口；群聊只给 WorkX 登录入口，不暴露设备码或 Token |
 | GET /oauth/callback/{provider} | 服务端校验 state／issuer／回调绑定，完成换码与连接登记；具体提供方可用其他回调形态 |
 | GET /tenants/{tenant_id}/connections/{id} | 返回归属、scope、状态、expiry 摘要与可用能力，不返回凭证明文 |
 | POST /tenants/{tenant_id}/connections/{id}/reauthorize | 重新授权或补充 scope；失败不扩大原范围 |
@@ -150,3 +162,7 @@ Redis 消费组配合可重放 outbox 分发，Worker 心跳续租，Reconciler 
 | POST /tenants/{tenant_id}/connections/{id}/disconnect | 阻止新调用、撤销内部票据，并异步请求外部撤销；分别反馈结果 |
 
 `credential.refreshing / degraded / needs_reauth / revoked` 只发布脱敏状态；OAuth code、device_code、state 原文、PKCE verifier、Token、密钥、工具票据不进入 SSE 和任务事件。内部票据签发／刷新接口仅供受信 Worker，Gateway 在每次调用时核验有效授权与 Attempt 租约。
+
+内部 Broker 只处理 WorkX 原生 Adapter 与 Secret Resolver，不使用第三方连接平台 ID。轮换、断开均按 authz_epoch／SecretVersion 生效；在途写请求按回执核对，不能通过重新授权自动重放。
+
+邀请 token 不进入 URL 日志、SSE 或普通审计内容，数据库仅存摘要；接受与撤销／到期用事务仲裁，重复接受不重复建成员。`#settings`、`#team` 是前端路由，不是服务端鉴权边界；本地“演示接受”不会调用这些正式 API。

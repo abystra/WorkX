@@ -50,6 +50,8 @@ export function renderHomeTeam(ctx) {
   const { data } = ctx;
   const { tr, i } = helpers(ctx);
   const shared = list(data.agents).filter(a => list(data.teamAgentIds).includes(a.id));
+  if(data.spaceType)return `<section class="wx-team-home"><div class="wx-team-home-heading"><div><span class="wx-team-eyebrow">${tr('spaces.'+data.spaceType)}</span><h1>${tr(data.spaceType==='personal'?'spaces.homePersonal':'spaces.homeOrg')}</h1><p>${tr(data.spaceType==='personal'?'spaces.homePersonalHint':'spaces.homeOrgHint')}</p></div><button class="text-btn" data-action="nav" data-page="${data.spaceType==='personal'?'settings':'team'}" data-id="general">${tr(data.spaceType==='personal'?'spaces.settings':'spaces.manage')}${i('chevron',13)}</button></div><div class="wx-team-home-footer"><div class="wx-team-home-counts"><span>${i('robot',14)}${tr('spaces.agentCount',{count:data.agents.length})}</span><span>${i('folder',14)}${tr('team.projectCount',{count:data.projects.length})}</span>${data.spaceType==='organization'?`<span>${i('users',14)}${tr('team.memberCount',{count:data.teamMembers.length})}</span>`:''}</div><button class="text-btn" data-action="nav" data-page="team" data-id="data">${tr('spaces.data')}${i('arrow',14)}</button></div></section>`;
+
   return `<section class="wx-team-home"><div class="wx-team-home-heading"><div><span class="wx-team-eyebrow">${tr('team.local')}</span><h1>${tr('team.homeTitle')}</h1><p>${tr('team.homeDescription')}</p></div><button class="text-btn" data-action="nav" data-page="team">${tr('team.manage')}${i('chevron', 13)}</button></div><div class="wx-team-home-footer"><div class="wx-team-home-counts"><span>${i('users', 14)}${tr('team.memberCount', { count: list(data.teamMembers).length })}</span><span>${i('robot', 14)}${tr('team.agentCount', { count: shared.length })}</span><span>${i('folder', 14)}${tr('team.projectCount', { count: list(data.projects).length })}</span></div><button class="text-btn" data-action="nav" data-page="projects">${tr('team.projects')}${i('arrow', 14)}</button></div></section>`;
 }
 
@@ -151,6 +153,7 @@ export function handleTeamAction(action, el, ctx) {
   const { data, state } = ctx;
   const { e, tr, btn, person } = helpers(ctx);
   const entityId = el.dataset.id;
+  if(data.spaceType&&['team-add-member','team-save-member','team-edit-role','team-save-role','team-manage-agents','team-save-agents'].includes(action)&&(data.spaceType==='personal'||!data.teamMembers.some(m=>m.id==='m1'&&m.status==='active'&&['owner','admin'].includes(m.role)))){ctx.toast(t('spaces.noPermission'));return true;}
   if (action === 'team-tab' || action === 'team-project-tab') {
     const allowed = action === 'team-tab' ? ['members', 'organization', 'roles', 'agents', 'activity'] : ['tasks', 'context', 'members'];
     if (allowed.includes(el.dataset.tab)) state[action === 'team-tab' ? 'teamTab' : 'projectTab'] = el.dataset.tab;

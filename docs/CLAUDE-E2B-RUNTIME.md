@@ -1,10 +1,10 @@
 # Claude Harness 与 E2B 执行设计
 
-版本：0.4 · 2026-10-30 · 目标设计
+版本：0.5 · 2026-10-30 · 目标设计
 
 ## 执行内核的定义
 
-这里的“Claude”指 **Claude Agent SDK 驱动的 Harness**，不仅是通过 Anthropic Client SDK 发一条聊天请求。Agent SDK 提供执行循环；WorkX Runner 是我们编写的适配程序。采用 Python SDK 以统一后端和运行时代码，不再引入 OpenCode 服务。
+这里的“Claude”指 **Claude Agent SDK 驱动的 Harness**，不仅是通过 Anthropic Client SDK 发一条聊天请求。Agent SDK 提供执行循环；WorkX Runner 是我们编写的适配程序。采用 Python SDK 以统一后端和运行时代码，不再引入 OpenCode 服务。凭证边界以 [统一方案](CREDENTIAL-SOLUTION.md) 为准；个人与组织租户均同样适用。
 
 [官方托管文档](https://code.claude.com/docs/en/agent-sdk/hosting) 将 SDK 定位为具有本地进程、工作目录和会话状态的执行程序，因此放在 E2B 执行层，而不是直接放在共享 FastAPI 进程。
 
@@ -56,7 +56,7 @@ Task 是一次业务交付目标；Attempt 是一次实际执行尝试。执行�
 
 ## 沙箱与目录
 
-首版每个活动 WorkX Session 独占一个 E2B 沙箱，不采用“企业所有成员共用一个沙箱”。空闲可暂停，到保留期销毁；不同 Session 追求隔离，不因同一租户而直接共享可写磁盘。
+首版每个活动 WorkX Session 独占一个 E2B 沙箱，服务端映射必须含 tenant_id；同一用户的个人／组织空间不能共用环境或恢复包。空闲可暂停，到保留期销毁；不同 Session 追求隔离，不因同一租户而直接共享可写磁盘。
 
 目录、挂载类型和来源依据统一见 [沙箱文件系统规范](SANDBOX-FILESYSTEM.md)。规范对齐 Claude 官方公开的 `/mnt/session` 输入输出语义；这是 WorkX 自建目录约定，不是 Agent SDK 的强制路径。
 
@@ -82,7 +82,7 @@ E2B 原生 Volumes 当前是 private beta，官方说明不支持只读挂载，
 
 以 [Python SDK](https://code.claude.com/docs/en/agent-sdk/python) 为编码依据：长执行、追问和取消采用 `ClaudeSDKClient`，将 SDK 输入、响应与中断封装进 Adapter。`query()` 可以用于一次性联调，但不作为本产品完整会话管理器。
 
-WorkX 的配置装配顺序：平台安全基线 → 企业可用能力 → 伙伴版本 → 项目授权范围 → 本轮 RunSpec。用户输入和知识内容不能修改上述授权。伙伴指令、模型、工具目录、Skills 与知识 revision 在 Attempt 开始时固定，并记录版本；配置变更不悄悄改变正在运行的上下文。
+WorkX 的配置装配顺序：平台安全基线 → 当前租户可用能力 → 伙伴版本 → 项目授权范围 → 本轮 RunSpec。用户输入和知识内容不能修改上述授权。伙伴指令、模型、工具目录、Skills 与知识 revision 在 Attempt 开始时固定，并记录版本；配置变更不悄悄改变正在运行的上下文。
 
 [权限文档](https://code.claude.com/docs/en/agent-sdk/permissions) 说明 `allowed_tools` 是自动批准规则而不是完整工具暴露白名单，且自动批准可以跳过权限回调。因此：
 
@@ -95,13 +95,12 @@ Skills 只来自已审核、有版本的运行时包。按 [Skills 文档](https
 
 ## 凭证与网络
 
-凭证分层、保存、刷新与交互的统一约定见 [MCP／Skill／Connector 凭证架构](CREDENTIALS-AND-CONNECTORS.md)，落地分类与注入路径见 [凭证落地方案](CREDENTIAL-SOLUTION.md)。Runner 生成 SDK 的 MCP 配置时把上游地址改写为 WorkX Gateway 地址，`headers` 只写任务票据。个人 OAuth、企业应用身份、WorkX SSO 与内部工具票据不可混用；同一 Refresh Token 只有一个刷新责任方。飞书 CLI 默认在受控 Connector Worker 执行，不复制员工本机登录缓存到 E2B。
+凭证分层、保存、刷新与交互的统一约定见 [MCP／Skill／Connector 凭证架构](CREDENTIALS-AND-CONNECTORS.md)，落地分类与注入路径见 [凭证落地方案](CREDENTIAL-SOLUTION.md)。Runner 生成 SDK 的 MCP 配置时把上游地址改写为 WorkX Gateway 地址，`headers` 只写面向 Gateway 的临时任务票据。个人 OAuth、企业应用身份、WorkX SSO 与内部工具票据不可混用；同一 Refresh Token 只有一个刷新责任方。飞书 CLI 默认在受控 Connector Worker 执行，不复制员工本机登录缓存到 E2B。
 
 E2B 管理 API key 只在控制面。飞书／企业微信长期 Secret 只在密钥存储与 Gateway／Channel Worker，沙箱通过短期、可撤销、限定租户／资源／Attempt 的工具票据请求能力。票据不能指定另一个 tenant_id 覆盖服务端绑定。
 
-模型认证使用 Anthropic API 体系，不将员工个人 Claude 登录用于 SaaS。优先验证统一模型出口代理与预算计量；若 PoC 使用原生 API key，单独使用受限测试密钥并仅注入该 Runner 环境，不能声称密钥对沙箱内代码不可见。生产网关和密钥方案在正式接入前定案，不假设现成代理自动兼容所有 SDK 功能。
-
-网络只开放模型出口、必要 Gateway 和经验证的依赖地址；模板预装依赖，默认禁止任意公网及内网访问。域名、重定向与私网地址处理由网络层／Gateway 保证。沙箱票据可视为已暴露给沙箱内代码，按其可能被读取来限制权限与时效。
+模型认证使用 Anthropic API 体系，统一走 Model Gateway；Runner 的受控 Base URL 和认证配置仅含本 Attempt 的代理票据，真实模型 API key 留在可信区。PoC 与生产采用同一边界，不再允许“测试时把真实模型 key 注入 E2B”的例外。SDK／流式接口、预算和 Gateway 认证兼容性必须验证。
+网络只开放 Model Gateway、必要工具 Gateway 和经验证的依赖地址；模板预装依赖，默认禁止任意公网及内网访问。域名、重定向与私网地址处理由网络层／Gateway 保证。沙箱票据可视为已暴露给沙箱内代码，按其可能被读取来限制权限与时效。
 
 ## 知识、文件与成果持久化
 
@@ -114,14 +113,15 @@ S3 保存原文件、版本化知识材料、成果与恢复包；PostgreSQL 保
 | 情境 | WorkX 处理 |
 | --- | --- |
 | SSE 断线或浏览器关闭 | Agent 继续执行；客户端按 seq 补发，不重新执行。 |
-| 用户取消 | DB 写 cancel_requested 并撤销新增敏感操作票据，Runner 请求 SDK interrupt，消费终结消息；超时则 Worker 终止 Runner／沙箱。已发生外部操作不能靠取消回滚。 |
-| 空闲 | 无活动 Attempt 且恢复包确认后才暂停；E2B 生命周期与 WorkX 保留期限分开配置。 |
+| 用户取消 | DB 写 cancel_requested 并作废当前 Attempt 的全部代理票据，Runner 请求 SDK interrupt，消费终结消息；超时则 Worker 终止 Runner／沙箱。已发生外部操作不能靠取消回滚。 |
+| 空闲 | 无活动执行、所有票据／relay 签名材料已撤销且恢复包验证后才暂停；恢复重新签发。无上游 Secret 不代表票据可以无限保留。 |
+| 缺少授权 | 保存 PendingOperation 与安全检查点，终结旧 Attempt 为 waiting_auth，释放租约并撤销票据；有效回调调度同 Task 的新 Attempt。 |
 | Worker 宕机／租约丢失 | Reconciler 核对 Attempt、运行进程和事件位置，先接管或终止旧进程；旧 fencing token 不能落库或执行 Gateway 写操作。 |
 | SDK／沙箱故障 | 已发布成果保留，未确认操作进入 reconciliation；恢复前检查权限、模板、模型、配置和知识版本。 |
 | SDK 会话恢复 | 显式指定服务端映射的 claude_session_id，并恢复匹配的工作区／SDK 会话材料；不能仅保存 ID 就假定可续跑。 |
 | 不兼容或恢复材料缺失 | 新 Attempt 标注“根据已保存结果重新开始”，不宣称无损恢复；有外部写操作时先核对副作用。 |
 
-[SDK 会话文档](https://code.claude.com/docs/en/agent-sdk/sessions) 区分会话历史与文件系统，fork 不自动复制工作目录。首版不开放用户会话 fork。恢复包在已排空执行且状态一致的边界保存，并记录 `runtime_version / cwd / config_revision / knowledge_revision / event_cursor`。可评估官方 SessionStore 能力，跨主机兼容性在锁定版本上验证后再启用。
+[SDK 会话文档](https://code.claude.com/docs/en/agent-sdk/sessions) 区分会话历史与文件系统，fork 不自动复制工作目录。首版不开放用户会话 fork。恢复包排除凭证、票据、认证缓存与临时控制文件；SDK 配置目录只选择性保留会话材料，不能整目录打包。恢复包在已排空执行且状态一致的边界保存，并记录 `runtime_version / cwd / config_revision / knowledge_revision / event_cursor`。可评估官方 SessionStore 能力，跨主机兼容性在锁定版本上验证后再启用。
 
 [E2B 暂停恢复](https://docs.e2b.dev/sandbox/persistence) 可用于保留执行环境，但不能代替产品数据的备份。恢复后仍要重新检查租约、票据和授权；WorkX 主动清理过期沙箱和恢复包，不依赖供应商替我们执行企业保留策略。
 
@@ -131,4 +131,4 @@ S3 保存原文件、版本化知识材料、成果与恢复包；PostgreSQL 保
 
 SDK 支持的 stdio env 和远程 headers 通过已审核 RuntimeBinding 装配，不把所有 Skill 变量放进整个 Agent 环境。普通 Skill 指令触发 Bash 不会自动获得专属 env；需经 Launcher 执行。远程无认证 MCP 不附加上游授权头，OAuth 由控制面完成，SDK 的 needs-auth／failed 应反馈给产品层。详见 [Skill 运行契约](SKILL-RUNTIME-CONTRACT.md)。
 
-原生静态凭证必须被程序读取时，优先在可信 Connector Worker 运行；确需独立执行环境时作为明确的凭证型任务，生命周期、暂停与结果导出按运行契约处理。不能既把上游原始 key 注入 env／文件，又声称凭证从未进入执行进程。
+原生静态凭证必须被程序读取时，只允许在可信 Credential Worker 的隔离执行单元运行，不以“另建 Agent E2B”作为例外。SDK stdio env 只能装配符合边界的配置；依赖真实上游 Secret 的 stdio MCP 改成由 Worker 提供的远程工具。
