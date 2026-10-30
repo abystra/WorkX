@@ -1,0 +1,11 @@
+{
+  "name": "workmates-prototype",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Doubao Workmates high-fidelity interactive prototype",
+  "scripts": {
+    "dev": "node server.mjs",
+    "check": "node --check dist/app.js && node --check dist/data.js && node --check dist/icons.js && node --check dist/secondary.js"
+  }
+}
