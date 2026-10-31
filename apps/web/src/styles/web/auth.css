@@ -1,0 +1,25 @@
+/*
+ * Public account screens (sign-in, sign-up, invitation, session ended). New screens without a prototype
+ * reference: they reuse the prototype tokens, brand row, modal card, buttons and the connection dialog's
+ * language switch. Documented for review in apps/web/docs/NEW-SCREENS.md.
+ */
+.wx-auth-page{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:var(--sidebar);padding:0 16px}
+.wx-auth-brand{width:100%;max-width:1200px;height:58px;display:flex;align-items:center;gap:7px;padding:0 13px}
+.wx-auth-brand .brand-word{font-size:18px;font-weight:650}
+.wx-auth-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:24px 0 48px}
+.wx-auth-card.modal{width:440px;max-height:none;overflow:visible;animation:none;box-shadow:0 12px 48px #1f232912}
+.wx-auth-card .modal-header{padding:26px 28px 6px}
+.wx-auth-card .modal-header h1{font-size:20px;font-weight:600;margin:0}
+.wx-auth-card .modal-body{padding:6px 28px 24px}
+.wx-auth-lead{color:var(--muted);font-size:13px;line-height:1.65;margin:0 0 18px}
+.wx-auth-card .btn{width:100%;min-height:40px;font-size:14px}
+.wx-auth-card .btn+.btn{margin-top:10px}
+.wx-auth-switch{margin:16px 0 0;font-size:13px;color:var(--muted);text-align:center}
+.wx-auth-switch a{color:var(--blue);margin-left:4px}
+.wx-auth-note{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px 12px;margin:0 0 18px;font-size:12px;line-height:1.55;color:var(--muted)}
+.wx-auth-note svg{flex:none;margin-top:1px}
+.wx-auth-note.is-dev{border-color:#f1d9a8;background:#fff9ec;color:#7a5b1f}
+.wx-auth-error{border:1px solid #f3c7c3;background:#fff5f4;color:#b4332b;border-radius:8px;padding:10px 12px;margin:0 0 18px;font-size:13px;line-height:1.55}
+.wx-auth-footer{margin-top:18px;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+.wx-auth-footer .wx-conn-languages button{font-size:11px;padding:3px 7px}
+.wx-auth-tagline{color:var(--muted);font-size:13px;margin:0 0 18px;text-align:center}

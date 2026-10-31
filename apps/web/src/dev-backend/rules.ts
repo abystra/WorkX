@@ -27,7 +27,7 @@ export function normalizeSpace(space: Space) {
   data.tenantId = space.id;
   data.spaceType = space.type;
   data.enterprise = { ...data.enterprise, id: space.id, name: space.name };
-  for (const key of ['invitations', 'connections', 'departments', 'teamActivity', 'teamAgentIds', 'ecosystemBindings', 'channelRuns', 'scenarioDrafts']) data[key] ||= [];
+  for (const key of ['invitations', 'connections', 'departments', 'teamActivity', 'teamAgentIds', 'ecosystemBindings', 'channelRuns', 'scenarioDrafts', 'knowledgeSources']) data[key] ||= [];
   if (space.type === 'personal') {
     data.teamMembers = data.teamMembers.filter((m: any) => m.id === 'm1');
     data.invitations = [];

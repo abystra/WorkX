@@ -24,9 +24,11 @@ const candidate = args.candidate || 'out/web';
 const out = args.out || 'out/diff';
 const PASS = Number(args.pass ?? 0.005);
 const REVIEW = Number(args.review ?? 0.03);
-const approved = existsSync(new URL('./approved-deviations.json', import.meta.url))
-  ? JSON.parse(await readFile(new URL('./approved-deviations.json', import.meta.url), 'utf8')).deviations.map(d => d.state)
+const deviations = existsSync(new URL('./approved-deviations.json', import.meta.url))
+  ? JSON.parse(await readFile(new URL('./approved-deviations.json', import.meta.url), 'utf8')).deviations
   : [];
+const approved = deviations.filter(d => d.status !== 'proposed').map(d => d.state);
+const proposed = deviations.filter(d => d.status === 'proposed').map(d => d.state);
 
 async function walk(dir) {
   const files = [];
@@ -55,6 +57,7 @@ for (const file of await walk(baseline)) {
   const ratio = n / (a.width * a.height);
   let verdict = ratio <= PASS ? 'pass' : ratio <= REVIEW ? 'review' : 'fail';
   if (verdict !== 'pass' && approved.includes(stateId)) verdict = 'approved';
+  else if (verdict !== 'pass' && proposed.includes(stateId)) verdict = 'proposed';
   if (verdict !== 'pass') {
     const target = join(out, rel);
     await mkdir(join(target, '..'), { recursive: true });
@@ -66,5 +69,5 @@ await mkdir(out, { recursive: true });
 await writeFile(join(out, 'summary.json'), JSON.stringify(rows, null, 2));
 const count = v => rows.filter(r => r.verdict === v).length;
 for (const r of rows.filter(r => r.verdict !== 'pass')) console.log(`${r.verdict.padEnd(9)} ${r.rel} ${r.reason || (r.ratio * 100).toFixed(2) + '%'}`);
-console.log(`\n${rows.length} compared: ${count('pass')} pass, ${count('review')} review, ${count('approved')} approved deviation, ${count('fail')} fail`);
+console.log(`\n${rows.length} compared: ${count('pass')} pass, ${count('review')} review, ${count('approved')} approved deviation, ${count('proposed')} proposed deviation (awaiting review), ${count('fail')} fail`);
 if (count('fail')) process.exitCode = 1;

@@ -1,6 +1,6 @@
 import type {
   ModelOption, ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, EcosystemBinding, Invitation, Me,
-  Member, Project, ScenarioDraft, Task, TenantDetail, TenantSummary,
+  KnowledgeSource, Member, Project, ScenarioDraft, Task, TenantDetail, TenantSummary,
 } from './contracts';
 import type { Transport } from './transport';
 
@@ -58,6 +58,8 @@ export const api = {
   sharedAgentIds: (tenantId: string) => req<string[]>('GET', `${t(tenantId)}/shared-agents`),
   invitations: (tenantId: string) => req<Invitation[]>('GET', `${t(tenantId)}/invitations`),
   invite: (tenantId: string, emails: string, role: string) => req<Invitation[]>('POST', `${t(tenantId)}/invitations`, { emails, role }),
+  /** Global (not tenant-scoped): accepts an emailed invitation for the signed-in user (J2). */
+  acceptInvitation: (token: string) => req<{ tenant_id: string }>('POST', '/invitations/accept', { token }),
   transitionInvitation: (tenantId: string, id: string, action: 'accept' | 'cancel') => req<null>('POST', `${t(tenantId)}/invitations/${encodeURIComponent(id)}/${action}`),
   connections: (tenantId: string) => req<Connection[]>('GET', `${t(tenantId)}/connections`),
   createConnection: (tenantId: string, body: Record<string, unknown>) => req<Connection>('POST', `${t(tenantId)}/connections`, body),
@@ -66,8 +68,23 @@ export const api = {
   activity: (tenantId: string) => req<ActivityEvent[]>('GET', `${t(tenantId)}/activity`),
   departments: (tenantId: string) => req<{ id: string; name: string; parentId?: string }[]>('GET', `${t(tenantId)}/departments`),
   channelRuns: (tenantId: string) => req<ChannelRun[]>('GET', `${t(tenantId)}/channel-runs`),
+  knowledgeSources: (tenantId: string) => req<KnowledgeSource[]>('GET', `${t(tenantId)}/knowledge-sources`),
+  /** Makes a Library file a knowledge source (idempotent per file) and starts ingestion. */
+  createKnowledgeSource: (tenantId: string, fileId: string) => req<KnowledgeSource>('POST', `${t(tenantId)}/knowledge-sources`, { fileId }),
+  /** Replaces the knowledge sources attached to a workmate. */
+  setAgentKnowledge: (tenantId: string, agentId: string, sourceIds: string[]) => req<Agent>('PUT', `${t(tenantId)}/agents/${encodeURIComponent(agentId)}/knowledge`, { sourceIds }),
   channelBindings: (tenantId: string) => req<EcosystemBinding[]>('GET', `${t(tenantId)}/channel-bindings`),
 
   /** Generic call for adapter-specific actions (channels, ecosystem); typed at the call site. */
   call: <T>(method: Parameters<Transport['request']>[0], path: string, body?: unknown) => req<T>(method, path, body),
 };
+
+/** Only same-origin relative paths may be used as a post-login destination (no open redirects). */
+export function safeReturnTo(value: string | null | undefined): string {
+  return value && value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') ? value : '/';
+}
+
+/** Server-side OIDC entry point (Part 9 §3): the API redirects to Keycloak and sets the session cookie. */
+export function authLoginUrl(intent: 'login' | 'signup', returnTo: string): string {
+  return `/api/v1/auth/login?intent=${intent}&return_to=${encodeURIComponent(safeReturnTo(returnTo))}`;
+}

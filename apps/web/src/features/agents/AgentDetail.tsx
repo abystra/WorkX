@@ -9,6 +9,7 @@ import { IconButton, MenuItem, useOverlay } from '@/ui/overlay';
 import { agentDescription } from '@/features/home/Home';
 import { ModelMenu, modelLabel } from '@/features/tasks/ComposerMenus';
 import { ProactiveDialog, ProactiveFooter } from '@/features/shell/dialogs';
+import { AgentKnowledge } from '@/features/knowledge/Knowledge';
 import { AgentEcosystem } from '@/features/channels/AgentEcosystem';
 import { CreateAgentDialog } from './AgentDialogs';
 
@@ -98,6 +99,7 @@ export function AgentDetail() {
       <div className="detail-label"><h2>{t('Work context')}</h2><button className="btn" data-action="add-context" onClick={() => overlay.modal(t('Edit work context'), <EditTextDialog agentId={agent.id} field="context" />, <EditTextDialog.Footer agentId={agent.id} field="context" />)}><Icon name="plus" size={16} />{t('Add context')}</button></div>
       <p className="muted">{t('给伙伴一些工作背景，让每次协作更有默契。')}</p>
       <div className="instruction-box">{agent.context || t('ui.defaultContext')}</div>
+      <AgentKnowledge agentId={agent.id} />
     </>;
   } else if (detailTab === 'Ecosystem') {
     body = <AgentEcosystem agentId={agent.id} />;

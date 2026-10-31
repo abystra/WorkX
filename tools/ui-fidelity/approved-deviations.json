@@ -1,4 +1,30 @@
 {
-  "_comment": "Visual differences approved by product/design. Each entry needs a reason category (accessibility, security, confirmed-product-requirement, architectural-constraint), the decision reference, and the states it affects. Empty until the first production screen is compared.",
-  "deviations": []
+  "_comment": "Visual differences approved by product/design. Each entry needs a reason category (accessibility, security, confirmed-product-requirement, architectural-constraint), the decision reference, and the states it affects. compare.mjs reads `state`. Entries with status \"proposed\" are awaiting review: compare.mjs reports them as `proposed`, never as pass or approved.",
+  "deviations": [
+    {
+      "state": "agent-detail-context",
+      "category": "confirmed-product-requirement",
+      "decision": "Decision 30 / Q-15 (approved 2026-10-31)",
+      "change": "Work Context tab gains a Knowledge section below the work context box (heading, Attach from Library, list or empty state). The existing content above it is unchanged."
+    },
+    {
+      "state": "library",
+      "category": "confirmed-product-requirement",
+      "decision": "Decision 30 / Q-15 (approved 2026-10-31)",
+      "change": "Library filter row gains a fifth chip, Knowledge. Cards of files used as knowledge show a status tag (none in the seed fixture)."
+    },
+    {
+      "state": "library-preview",
+      "category": "confirmed-product-requirement",
+      "decision": "Decision 30 / Q-15 (approved 2026-10-31)",
+      "change": "Same Knowledge chip, visible behind the file preview dialog."
+    },
+    {
+      "state": "channel-compose",
+      "status": "proposed",
+      "category": "accessibility",
+      "decision": "Pending product/design review",
+      "change": "At 1280x800 the dialog is taller than the viewport. After 'Use demo message' the prototype rebuilds the dialog HTML and its scroll jumps back to the top, moving the clicked control away from the pointer. The React dialog keeps its scroll position. Only the 1280x800 captures differ (about 3.1%); 1440x900 is pixel-identical."
+    }
+  ]
 }

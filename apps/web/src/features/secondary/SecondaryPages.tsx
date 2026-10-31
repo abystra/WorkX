@@ -8,6 +8,7 @@ import { showFile } from '@/features/library/FileDialog';
 import { startTask } from '@/features/tasks/Composer';
 import { CreateAutomationDialog } from './AutomationDialog';
 import { SecondaryEmpty, SecondaryHeader, dateText, scheduleText } from './common';
+import { KnowledgeStatusTag } from '@/features/knowledge/Knowledge';
 
 const CATEGORY: Record<string, string> = { Personal: 'sec.personal', Team: 'sec.team', 'Third-party': 'sec.thirdParty', Squads: 'sec.squads', Workmate: 'sec.workmate' };
 
@@ -88,13 +89,14 @@ export function Library() {
   const { t, ws } = ctx;
   const overlay = useOverlay();
   const { libraryFilter: filter, set } = useUi();
-  const selected = filter === 'all' ? ws.library : ws.library.filter(x => x.type === filter);
+  const sourceFor = (fileId: string) => ws.knowledge.find(k => k.fileId === fileId);
+  const selected = filter === 'all' ? ws.library : filter === 'knowledge' ? ws.library.filter(x => sourceFor(x.id)) : ws.library.filter(x => x.type === filter);
   return (
     <div className="secondary-page sw-page-library">
       <SecondaryHeader name="sec.library" description="sec.library.description" />
       <div className="sw-library-toolbar">
         <div className="sw-tabs">
-          {[['all', 'sec.files.all'], ['doc', 'sec.files.documents'], ['slides', 'sec.files.presentations'], ['sheet', 'sec.files.spreadsheets']].map(([key, label]) => (
+          {[['all', 'sec.files.all'], ['doc', 'sec.files.documents'], ['slides', 'sec.files.presentations'], ['sheet', 'sec.files.spreadsheets'], ['knowledge', 'web.knowledge.filter']].map(([key, label]) => (
             <button key={key} data-action="library-filter" data-filter={key} className={filter === key ? 'is-selected' : ''} onClick={() => set({ libraryFilter: key })}>
               {t(label)}{key === 'all' ? <span>{ws.library.length}</span> : null}
             </button>
@@ -108,6 +110,7 @@ export function Library() {
             const type = ['doc', 'slides', 'sheet'].includes(f.type) ? f.type : 'doc';
             const label = { doc: 'sec.file.document', slides: 'sec.file.presentation', sheet: 'sec.file.spreadsheet' }[type];
             const name = f.name || t('sec.untitled');
+            const source = sourceFor(f.id);
             const preview = type === 'doc' ? (
               <div className="sw-mini-document"><span className="sw-mini-eyebrow">{t('sec.file.documentBrand')}</span><strong>{name}</strong><div className="sw-mini-rule" /><div className="sw-mini-line" /><div className="sw-mini-line" /><div className="sw-mini-line short" /><b>01 &nbsp; {t('sec.file.overview')}</b><div className="sw-mini-line" /><div className="sw-mini-line short" /></div>
             ) : type === 'slides' ? (
@@ -125,12 +128,15 @@ export function Library() {
                 <div className="sw-file-details">
                   <span className={`sw-file-type sw-type-${type}`}><Icon name={type === 'sheet' ? 'grid' : type === 'slides' ? 'play' : 'file'} size={18} /></span>
                   <div><h3>{name}</h3><p>{t(label)}<span>·</span>{dateText(t, f.updated || 'Just now')}</p></div>
+                  {source ? <KnowledgeStatusTag source={source} /> : null}
                 </div>
               </button>
             );
           })}
         </div>
-      ) : <SecondaryEmpty icon="file" name="sec.library.emptyTitle" description="sec.library.emptyDescription" />}
+      ) : filter === 'knowledge'
+        ? <SecondaryEmpty icon="file" name="web.knowledge.libraryEmptyTitle" description="web.knowledge.libraryEmptyBody" />
+        : <SecondaryEmpty icon="file" name="sec.library.emptyTitle" description="sec.library.emptyDescription" />}
     </div>
   );
 }

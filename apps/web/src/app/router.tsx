@@ -4,6 +4,7 @@ import { AppLayout } from './Layout';
 import { PAGES, WorkspaceProvider, useWs, type Page } from './workspace';
 import { NotFound } from './states';
 import { pageTitle, PageSwitch } from './pages';
+import { InvitePage, LoginPage, SessionExpiredPage, SignupPage } from '@/features/auth/AuthPages';
 
 const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
@@ -47,7 +48,13 @@ const tenantIndexRoute = createRoute({ getParentRoute: () => rootRoute, path: '/
 const tenantPageRoute = createRoute({ getParentRoute: () => rootRoute, path: '/t/$tenantId/$page', component: TenantPage });
 const tenantPageIdRoute = createRoute({ getParentRoute: () => rootRoute, path: '/t/$tenantId/$page/$id', component: TenantPage });
 
-const routeTree = rootRoute.addChildren([indexRoute, settingsIndexRoute, settingsRoute, tenantIndexRoute, tenantPageRoute, tenantPageIdRoute]);
+// Public account screens: rendered outside WorkspaceProvider, so they never request /me.
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: '/login', component: LoginPage });
+const signupRoute = createRoute({ getParentRoute: () => rootRoute, path: '/signup', component: SignupPage });
+const inviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite/$token', component: InvitePage });
+const sessionExpiredRoute = createRoute({ getParentRoute: () => rootRoute, path: '/session-expired', component: SessionExpiredPage });
+
+const routeTree = rootRoute.addChildren([loginRoute, signupRoute, inviteRoute, sessionExpiredRoute, indexRoute, settingsIndexRoute, settingsRoute, tenantIndexRoute, tenantPageRoute, tenantPageIdRoute]);
 
 export const router = createRouter({
   routeTree,

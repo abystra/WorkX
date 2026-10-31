@@ -50,6 +50,22 @@ export interface Agent extends Resource {
   instructions?: string;
   context?: string;
   extraSkills?: string[];
+  /** Knowledge sources the workmate may search and cite (agent_versions.knowledge_source_ids). */
+  knowledgeSourceIds?: string[];
+}
+
+/**
+ * A Library file made searchable for workmates (docs/architecture/07-KNOWLEDGE.md). `processing` covers
+ * upload checks, parsing, chunking and embedding; `ready` means a published revision exists.
+ */
+export type KnowledgeStatus = 'processing' | 'ready' | 'failed';
+export interface KnowledgeSource {
+  id: string;
+  fileId: string;
+  name: string;
+  status: KnowledgeStatus;
+  errorKey?: string;
+  updatedAt: number;
 }
 
 export type TaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted' | 'cancelled';
@@ -192,6 +208,12 @@ export type CollectionName = 'agents' | 'tasks' | 'projects' | 'artifacts' | 'au
 export interface ApiError { code: string; message: string; status: number }
 
 /** Event envelope (Part 11 §4). Tenant-level stream used for lists, toasts and task views. */
+/** Event types the UI reacts to on the tenant stream; anything else still triggers a refresh via onmessage. */
+export const TENANT_EVENT_TYPES = [
+  'task.queued', 'task.running', 'task.succeeded', 'task.failed', 'task.cancelled', 'task.interrupted',
+  'channel.run.updated', 'knowledge.source.updated', 'tenant.updated', 'membership.updated',
+] as const;
+
 export interface WorkxEvent {
   event_id: string;
   type: string;

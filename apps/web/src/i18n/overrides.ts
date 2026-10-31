@@ -1,7 +1,7 @@
 // Approved production wording (decision 31, Q-17; docs/architecture/15-UI-FIDELITY.md D-02).
 // Replaces prototype copy that describes browser-only storage or the prototype itself. Wording stays
 // in the same place and close to the original length. Copy that describes simulated execution is NOT
-// overridden here: it is only rendered while the development adapter is active (see `useSimulation`).
+// overridden here: it is only rendered while the development adapter is active (`runtime.simulated` from the transport).
 export const COPY_OVERRIDES: Record<string, { en: string; 'zh-CN': string }> = {
   'About this prototype': { en: 'About WorkX', 'zh-CN': '关于 WorkX' },
   '保存在此浏览器中，随时可以编辑。': { en: 'Saved to this workspace. You can edit it anytime.', 'zh-CN': '保存在当前空间中，随时可以编辑。' },

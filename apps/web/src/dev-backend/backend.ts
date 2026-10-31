@@ -20,6 +20,7 @@ const COLLECTION_FIELDS: Record<string, string> = {
   agents: 'agents', tasks: 'tasks', projects: 'projects', artifacts: 'library', automations: 'automations',
   scenarios: 'scenarioDrafts', members: 'teamMembers', invitations: 'invitations', connections: 'connections',
   activity: 'teamActivity', 'channel-runs': 'channelRuns', 'channel-bindings': 'ecosystemBindings', departments: 'departments',
+  'knowledge-sources': 'knowledgeSources',
 };
 
 const fail = (code: string, status = 400): never => { throw new ApiRequestError(status, code, code); };
@@ -182,6 +183,33 @@ function registerCoreRoutes(b: DevBackend) {
     return agent;
   });
 
+  // Knowledge (Q-15). Ingestion is simulated: no parsing, chunking, embedding or retrieval happens here.
+  b.route('POST', '/tenants/:t/knowledge-sources', ({ params, body, backend }) => {
+    const tenantId = params.t, data = backend.space(tenantId).data;
+    const file = findIn(data, 'library', String(body.fileId || ''));
+    const existing = data.knowledgeSources.find((k: any) => k.fileId === file.id);
+    if (existing && existing.status !== 'failed') return existing;
+    const source = existing || { id: 'ks-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), fileId: file.id };
+    Object.assign(source, { name: file.name, status: 'processing', errorKey: undefined, updatedAt: Date.now() });
+    if (!existing) data.knowledgeSources.unshift(source);
+    backend.save();
+    backend.schedule(`${tenantId}:knowledge:${source.id}`, 1200, () => {
+      Object.assign(source, { status: 'ready', updatedAt: Date.now() });
+      backend.save();
+      backend.emit(tenantId, 'knowledge.source.updated', { source_id: source.id, status: 'ready' });
+    });
+    return source;
+  });
+  b.route('PUT', '/tenants/:t/agents/:id/knowledge', ({ params, body, backend }) => {
+    const data = backend.space(params.t).data;
+    const agent = findIn(data, 'agents', params.id);
+    const ids = [...new Set((Array.isArray(body.sourceIds) ? body.sourceIds : []).map(String))];
+    if (ids.some(id => !data.knowledgeSources.some((k: any) => k.id === id))) fail('VALIDATION_FAILED');
+    agent.knowledgeSourceIds = ids;
+    backend.save();
+    return agent;
+  });
+
   // Tasks
   b.route('POST', '/tenants/:t/tasks', ({ params, body, backend }) => {
     const tenantId = params.t, data = backend.space(tenantId).data;
@@ -304,6 +332,21 @@ function registerCoreRoutes(b: DevBackend) {
     recordSpaceEvent(data, 'invitation');
     backend.save();
     return null;
+  });
+
+  // Development stand-in for POST /api/v1/invitations/accept. The token is the invitation id here;
+  // the control plane stores only token digests and checks the invitee's verified email (J2).
+  b.route('POST', '/invitations/accept', ({ body, backend }) => {
+    const token = String(body.token || '');
+    const space = backend.root.spaces.find((x: any) => (x.data.invitations || []).some((i: any) => i.id === token));
+    if (!space) return fail('INVITATION_NOT_FOUND', 404);
+    const invitation = space.data.invitations.find((i: any) => i.id === token);
+    if (invitation.status !== 'pending') fail(invitation.status === 'expired' ? 'INVITATION_EXPIRED' : 'INVITATION_CLOSED', 409);
+    const result: any = transitionInvitation(space.data, token, 'accept');
+    if (result.error) fail(result.error);
+    recordSpaceEvent(space.data, 'invitation');
+    backend.save();
+    return { tenant_id: space.id };
   });
 
   // Connections (metadata only; secrets never accepted here)

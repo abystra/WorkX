@@ -22,9 +22,26 @@ The FastAPI backend does not exist yet, so a production build shows the load-err
 - `src/dev-backend/` — development adapter (never in production builds) and the gated test seed.
 - `src/app/` — router, workspace context (navigation and workspace switching), layout, keyboard handling.
 - `src/features/<screen>/` — one module per prototype screen.
+- `src/features/auth/`, `src/features/knowledge/`, `src/styles/web/` — new screens without a prototype reference (account screens, Knowledge). Documented for design review in `docs/NEW-SCREENS.md`.
+- `tests/e2e/` — browser checks for the new screens (Playwright, against `pnpm dev:fidelity`).
 
 ## Checks
+
+Type check, unit tests, and the production build with its bundle check:
 
 ```bash
 pnpm typecheck && pnpm test && pnpm build
 ```
+
+Browser checks for the new screens need the fidelity server running (`pnpm dev:fidelity`):
+
+```bash
+node tests/e2e/account-screens.mjs && node tests/e2e/knowledge.mjs
+```
+
+Visual comparison against the prototype (serve the prototype on :4173 first) is described in `tools/ui-fidelity/README.md`; run it with `--viewports desktop,laptop` for the 1440×900 and 1280×800 check.
+
+## Docs
+
+- `docs/BACKEND-INTEGRATION.md` lists every endpoint the UI calls, what the development adapter simulates, and the transport work needed before connecting the real API.
+- `docs/NEW-SCREENS.md` covers new screens, approved wording changes, fidelity results and deviations.

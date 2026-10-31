@@ -1,7 +1,7 @@
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './client';
 import type {
-  ActivityEvent, Agent, Artifact, Automation, ChannelRun, Connection, EcosystemBinding, Invitation, Member, Project,
+  ActivityEvent, Agent, Artifact, Automation, ChannelRun, Connection, EcosystemBinding, Invitation, KnowledgeSource, Member, Project,
   ScenarioDraft, Task, TenantDetail,
 } from './contracts';
 
@@ -37,6 +37,7 @@ export interface Workspace {
   channelRuns: ChannelRun[];
   bindings: EcosystemBinding[];
   scenarios: ScenarioDraft[];
+  knowledge: KnowledgeSource[];
 }
 
 const parts = {
@@ -55,6 +56,7 @@ const parts = {
   departments: api.departments,
   channelRuns: api.channelRuns,
   bindings: api.channelBindings,
+  knowledge: api.knowledgeSources,
 } as const;
 const names = Object.keys(parts) as (keyof typeof parts)[];
 

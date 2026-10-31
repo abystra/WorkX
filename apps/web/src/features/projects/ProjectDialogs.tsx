@@ -16,7 +16,7 @@ export function Person({ member, size = '' }: { member?: Pick<Member, 'name'>; s
   return <span className={`wx-team-person ${size}`} aria-hidden="true">{(member?.name || '?').slice(0, 1).toUpperCase()}</span>;
 }
 
-function Checks<T extends { id: string; name: string }>({ items, selected, name, image }: { items: T[]; selected: string[]; name: string; image: (item: T) => React.ReactNode }) {
+export function Checks<T extends { id: string; name: string }>({ items, selected, name, image }: { items: T[]; selected: string[]; name: string; image: (item: T) => React.ReactNode }) {
   return (
     <div className="wx-team-choice-list">
       {items.map(item => (

@@ -7,6 +7,8 @@ import './styles/prototype/workspace.css';
 import './styles/prototype/connection.css';
 import './styles/prototype/channel.css';
 import './styles/prototype/spaces.css';
+import './styles/web/auth.css';
+import './styles/web/knowledge.css';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
