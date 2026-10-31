@@ -103,7 +103,9 @@ export interface Task extends Resource {
 }
 
 /** Real-API conversation (http mode). */
-export interface TaskMessageView { id: string; role: 'user' | 'assistant' | 'system'; content: string; fileId?: string; createdAt: string }
+/** A validated knowledge citation: `[n]` in the answer text refers to it (docs/architecture/07-KNOWLEDGE.md §9). */
+export interface CitationView { n: number; source: string; section: string; locator: Record<string, unknown>; snippet: string }
+export interface TaskMessageView { id: string; role: 'user' | 'assistant' | 'system'; content: string; fileId?: string; createdAt: string; citations?: CitationView[] }
 export interface TaskDetail extends Task { apiStatus: string; statusReason?: string | null; messages: TaskMessageView[] }
 export interface TaskEventView { seq: number; type: string; payload: Record<string, unknown>; createdAt: string }
 export interface ApprovalView { id: string; tool: string; summary: string; status: 'pending' | 'approved' | 'rejected' | 'expired'; expiresAt: string }

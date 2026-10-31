@@ -122,7 +122,16 @@ export const mapTask = (t: any) => ({
 
 export const mapTaskDetail = (t: any) => ({
   ...mapTask(t),
-  messages: (t.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content, fileId: m.file_id || undefined, createdAt: m.created_at })),
+  messages: (t.messages || []).map((m: any) => ({
+    id: m.id, role: m.role, content: m.content, fileId: m.file_id || undefined, createdAt: m.created_at,
+    citations: (m.citations || []).map((c: any) => ({ n: c.n, source: c.source, section: c.section, locator: c.locator || {}, snippet: c.snippet })),
+  })),
+});
+
+export const mapKnowledgeSource = (k: any) => ({
+  id: k.id, fileId: k.file_id, name: k.name, status: k.status,
+  errorKey: k.error_code ? `web.knowledge.error.${k.error_code}` : undefined,
+  updatedAt: Date.parse(k.updated_at) || Date.now(),
 });
 
 /** Catalog connector → the prototype's provider and auth-mode vocabulary (the card's icon and subtitle). */
@@ -204,7 +213,7 @@ function agentBody(b: any) {
 }
 
 const COLLECTIONS: Record<string, string> = { artifacts: 'files', library: 'files' };
-const LATER = /^\/tenants\/[^/]+\/(channel-bindings|channel-runs|channel-messages|knowledge-sources)(\/|$)/;
+const LATER = /^\/tenants\/[^/]+\/(channel-bindings|channel-runs|channel-messages)(\/|$)/;
 
 /** Plans one UI call. Unknown paths pass through unchanged (snake_case bodies are the caller's responsibility). */
 export function plan(method: Method, path: string, body: any): Planned {
@@ -212,7 +221,7 @@ export function plan(method: Method, path: string, body: any): Planned {
   let match: RegExpExecArray | null;
 
   if (LATER.test(path)) {
-    // Knowledge (P-08) and channels (P-09) are not served by the API yet.
+    // Channels (P-09) are not served by the API yet.
     return method === 'GET' ? { method, path, out: identity, local: [] } : { method, path, out: identity, local: new Error('NOT_AVAILABLE') };
   }
   if (path === '/me') {
@@ -285,6 +294,11 @@ export function plan(method: Method, path: string, body: any): Planned {
     ? { method, path, out: (rows: any[]) => rows.map(mapScenario) }
     : { method, path, body, out: mapScenario };
   if ((match = t('scenarios/([^/]+)'))) return { method, path, body, out: method === 'DELETE' ? identity : mapScenario };
+
+  if ((match = t('knowledge-sources'))) return method === 'GET'
+    ? { method, path, out: (rows: any[]) => rows.map(mapKnowledgeSource) }
+    : { method, path, body: { file_id: body.fileId }, out: mapKnowledgeSource };
+  if ((match = t('agents/([^/]+)/knowledge'))) return { method, path, body: { source_ids: body.sourceIds || [] }, out: identity };
 
   if ((match = t('connectors'))) return { method, path, out: identity };
   if ((match = t('connectors/([^/]+)/installation'))) return { method, path, body, out: identity };

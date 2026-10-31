@@ -67,7 +67,7 @@ Source: `src/features/knowledge/Knowledge.tsx`, `src/styles/web/knowledge.css`.
   - Processing failed: the amber "failed" style.
 - **No new sidebar item.**
 
-With the development adapter, processing is simulated (Processing → Ready after 1.2 s) and a `.prototype-note` says files are not parsed or searched. Upload of new files is not built; Knowledge uses existing Library files only.
+On the real API, a failed source shows the reason after its status tag (for example "This file type cannot be read yet."). With the development adapter, processing is simulated (Processing → Ready after 1.2 s) and a `.prototype-note` says files are not parsed or searched. Upload of new files is not built; Knowledge uses existing Library files only.
 
 ## 2b. Run states in the conversation (real runtime only)
 
@@ -80,6 +80,8 @@ It renders the real messages with the prototype classes (`chat-user`, `assistant
 - **Approval needed:** a bordered card with a summary, Approve and Reject.
 - **Failed, interrupted or cancelled:** a short explanation, the reason for failures, and Try again.
 - **Needs access:** an explanation plus Try again.
+
+- **Citations:** an answer that used knowledge keeps `[n]` markers in its text. Below it, a "Sources" list (small, muted, separated by the prototype's line colour) shows the number, the file name and the page, slide, sheet range or section. Hovering an item shows the quoted passage.
 
 **For review:** the tool names shown in steps come straight from the gateway, such as "crm list accounts". The product might want friendlier labels per connector.
 

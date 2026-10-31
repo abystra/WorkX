@@ -13,3 +13,8 @@
 .wx-approval .row{gap:8px;margin-top:10px}
 .wx-run-ended{margin-top:10px}
 .wx-run-ended p{margin:0 0 8px}
+
+/* Knowledge citations under an answer (docs/NEW-SCREENS.md §2b). */
+.wx-citations { list-style: none; margin: 10px 0 0; padding: 8px 0 0; border-top: 1px solid var(--line); display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.wx-citations li { display: flex; gap: 6px; min-width: 0; align-items: baseline; }
+.wx-citation-n { color: var(--text, #23262d); font-variant-numeric: tabular-nums; }

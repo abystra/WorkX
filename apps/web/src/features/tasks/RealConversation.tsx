@@ -1,9 +1,10 @@
 import { Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
-import type { Task, TaskEventView } from '@/api/contracts';
+import type { CitationView, Task, TaskEventView } from '@/api/contracts';
 import { tenantKey } from '@/api/hooks';
 import { useWs } from '@/app/workspace';
+import { useT } from '@/i18n';
 import { showFile } from '@/features/library/FileDialog';
 import { Avatar, Icon } from '@/ui/icons';
 import { useOverlay } from '@/ui/overlay';
@@ -104,6 +105,7 @@ export function RealConversation({ task }: { task: Task }) {
               {assistantHeader}
               <div className="assistant-answer">
                 <div className="assistant-markdown wx-answer-text">{m.content}</div>
+                {m.citations?.length ? <Citations items={m.citations} /> : null}
                 {m.fileId ? fileCard(m.fileId) : null}
               </div>
             </>
@@ -137,5 +139,24 @@ export function RealConversation({ task }: { task: Task }) {
         ) : null}
       </div>
     </>
+  );
+}
+
+/** Sources behind an answer's [n] markers (validated server-side against what the workmate retrieved). */
+function Citations({ items }: { items: CitationView[] }) {
+  const t = useT();
+  const where = (c: CitationView) => {
+    const l = c.locator;
+    if (l.page) return t('web.cite.page', { n: String(l.page) });
+    if (l.slide) return t('web.cite.slide', { n: String(l.slide) });
+    if (l.sheet) return `${String(l.sheet)}${l.range ? ' ' + String(l.range) : ''}`;
+    return c.section;
+  };
+  return (
+    <ol className="wx-citations" aria-label={t('web.cite.title')}>
+      {items.map(c => (
+        <li key={c.n} title={c.snippet}><span className="wx-citation-n">[{c.n}]</span><span className="ellipsis">{c.source}</span>{where(c) ? <span className="muted"> · {where(c)}</span> : null}</li>
+      ))}
+    </ol>
   );
 }

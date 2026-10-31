@@ -92,6 +92,27 @@ await alex.page.waitForTimeout(500);
 expect('P-05 the result file opens with its content', (await alex.page.textContent('body')).includes('Northwind Traders'));
 await alex.page.keyboard.press('Escape');
 
+// ---- P-08 / J7: attach the result file as knowledge, then a task searches it and cites the source.
+const agentId = await alex.page.evaluate(async t => (await (await fetch(`/api/v1/tenants/${t}/agents`)).json())[0].id, personalId);
+await alex.page.goto(`${base}/t/${personalId}/detail/${agentId}`);
+await alex.page.click('[data-action="detail-tab"][data-tab="Work Context"]');
+await alex.page.click('[data-action="knowledge-attach"]');
+await alex.page.waitForSelector('#knowledge-form');
+await alex.page.locator('#knowledge-form label', { hasText: 'top-accounts.md' }).locator('input').check();
+await alex.page.click('[data-action="knowledge-save"]');
+await alex.page.waitForSelector('.wx-knowledge-row', { timeout: 10000 });
+await alex.page.waitForSelector('.wx-knowledge-row .is-delivered', { timeout: 30000 });
+expect('P-08 attached file is processed by the worker and shown Ready', (await alex.page.textContent('.wx-knowledge-row')).includes('top-accounts.md'));
+await alex.page.goto(`${base}/t/${personalId}/home`);
+await alex.page.click('[data-action="nav"][data-page="new"]');
+await alex.page.fill('#task-prompt', 'SCENARIO:knowledge Northwind Traders Contoso');
+await alex.page.click('[data-action="send-task"]');
+await alex.page.waitForURL(/\/task\/tsk_/, { timeout: 10000 });
+await alex.page.waitForSelector('.wx-citations', { timeout: 60000 });
+const cited = await alex.page.textContent('.chat-scroll');
+expect('P-08 the answer cites the knowledge source with a number', cited.includes('your documents say [1]') && (await alex.page.textContent('.wx-citations')).includes('top-accounts.md'), cited.slice(-300));
+expect('P-08 the made-up citation was removed', !cited.includes('knc_'));
+
 // ---- J2: create an organization and invite Bob by email
 await alex.page.click('[data-action="profile"]');
 await alex.page.click('[data-action="space-create"]');

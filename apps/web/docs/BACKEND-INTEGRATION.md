@@ -15,13 +15,14 @@ Screens use `src/api/client.ts` only. In http mode, `src/api/http-mapping.ts` tr
 
 ## 2. What runs on the real API today (verified)
 
-Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (22/22 checks), plus the API test suite on PostgreSQL (`scripts/check.sh backend`):
+Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (25/25 checks), plus the API test suite on PostgreSQL (`scripts/check.sh backend`):
 
 - **J1:** sign-in through the OIDC code flow. In this environment that means the development issuer; Keycloak uses the same protocol but is not yet verified here. A personal workspace and a starter workmate are created.
 - **J2:** create an organization and invite by email. The worker sends the email; the invitee follows the link, signs in and accepts.
 - **J3:** workspace separation (another user's private task is invisible; the member list is per workspace).
 - **Connections (P-07):** Settings › Connections lists the workspace's connections from the API. Adding one picks a connector from the workspace catalog. API keys are sent once to the credential broker and never shown again. Shared connections are used only by the workmates bound to them (usage policy). Pause/resume maps to suspend/activate. The test CRM is connected this way (key `dev-crm-key`).
 - **OAuth connections (P-07b):** choosing an OAuth connector (Notes test service, Feishu Docs) sends the browser to the provider after saving. The provider returns to `/api/v1/oauth/callback`, then to the page the user started from, where a toast reports the result. Connections that need authorization show **Authorize** to their owner. A task stopped for authorization says it continues by itself once the connection is authorized, and links to Connections.
+- **Knowledge (P-08):** attaching Library files to a workmate creates knowledge sources; the worker parses, chunks, embeds and indexes them, and the status changes from Processing to Ready (or Processing failed, with the reason). Answers that use the knowledge show numbered citations and a Sources list; citations the workmate did not actually retrieve are removed. Locally, embeddings come from the development hash embedder in the Model Gateway.
 - **Task execution:** a task started in the browser runs through the real orchestrator, runner, Model Gateway, Tool Gateway and test CRM. The conversation shows the answer and the result file. Locally the upstream model is `workx dev-model` (scripted) unless `WORKX_ANTHROPIC_API_KEY` is set; see `runtime/README.md`. Approve/reject, stop and retry are wired to the API.
 - **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (any validated type; downloads go through the API), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (stored with cron and time zone), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
 
@@ -31,7 +32,6 @@ These calls are answered inside the transport: lists return empty, writes fail w
 
 | Area | Calls | Phase |
 | --- | --- | --- |
-| Knowledge | `/knowledge-sources`, workmate knowledge | P-08 |
 | Channels | `/channel-bindings`, `/channel-runs`, `/channel-messages` | P-09 |
 | Automation runs | Schedules are stored and `next_run_at` is computed; nothing runs them | P-10 |
 

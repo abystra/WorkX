@@ -75,6 +75,7 @@ export function AgentKnowledge({ agentId }: { agentId: string }) {
               <Icon name="file" size={16} />
               <span className="wx-knowledge-name ellipsis">{source.name}</span>
               <KnowledgeStatusTag source={source} />
+              {source.status === 'failed' && source.errorKey ? <span className="muted wx-knowledge-error">{t(source.errorKey)}</span> : null}
               <button type="button" className="text-btn" data-action="knowledge-remove" data-id={source.id} aria-label={t('web.knowledge.removeNamed', { name: source.name })} onClick={() => remove(source.id)}>{t('web.knowledge.remove')}</button>
             </li>
           ))}

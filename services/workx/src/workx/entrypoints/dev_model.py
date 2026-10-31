@@ -82,9 +82,9 @@ SCRIPTS: dict[str, list[dict[str, Any]]] = {
         {"text": "I saved the note in your Notes."},
     ],
     "knowledge": [
-        {"text": "Let me check the policy.", "tool": ("knowledge_search", {"query": "hotel reimbursed per night"})},
+        {"text": "Let me check your documents.", "tool": ("knowledge_search", {"query": "{prompt}"})},
         {
-            "text": "Hotels are reimbursed up to 180 EUR per night [[cite:{cite0}]]. "
+            "text": "Here is what your documents say [[cite:{cite0}]]. "
             "Unverified claim [[cite:knc_0000000000000000000000000000]]."
         },
     ],
@@ -118,6 +118,15 @@ def _fill(value: Any, outputs: str) -> Any:
     if isinstance(value, dict):
         return {k: _fill(v, outputs) for k, v in value.items()}
     return value
+
+
+def _prompt(body: dict[str, Any]) -> str:
+    """The user's request after the SCENARIO:<name> marker ({prompt} in scripts)."""
+    for message in body.get("messages", []):
+        content = message.get("content")
+        if isinstance(content, str) and "SCENARIO:" in content:
+            return content.split("SCENARIO:", 1)[1].split(" ", 1)[-1].strip()
+    return ""
 
 
 def _first_citation(body: dict[str, Any]) -> str:
@@ -160,6 +169,12 @@ def create_dev_model_app(*, key: str = UPSTREAM_KEY, environment: Environment = 
         step = dict(script[min(_step(body), len(script) - 1)])
         if "text" in step:
             step["text"] = step["text"].replace("{cite0}", _first_citation(body))
+        if "tool" in step:
+            name, args = step["tool"]
+            step["tool"] = (
+                name,
+                {k: v.replace("{prompt}", _prompt(body)) if isinstance(v, str) else v for k, v in args.items()},
+            )
 
         def stream() -> Iterator[str]:
             message_id = f"msg_{uuid.uuid4().hex[:12]}"

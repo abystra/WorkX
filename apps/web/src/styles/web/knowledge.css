@@ -9,3 +9,5 @@
 .wx-knowledge-empty{color:var(--muted)}
 .wx-knowledge-intro{margin:0 0 16px;font-size:13px;line-height:1.6}
 .sw-file-details .wx-knowledge-status{margin-left:auto;align-self:center}
+
+.wx-knowledge-error { font-size: 12px; }
