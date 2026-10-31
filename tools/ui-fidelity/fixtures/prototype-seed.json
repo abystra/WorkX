@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "user": {
+    "id": "u-alex",
+    "name": "Alex",
+    "email": "alex@example.com",
+    "notifications": true
+  },
+  "activeSpaceId": "wx-demo",
+  "spaces": [
+    {
+      "id": "personal-alex",
+      "type": "personal",
+      "name": "Alex",
+      "data": {
+        "agents": [
+          {
+            "id": "a1",
+            "name": "我的智能伙伴",
+            "description": "No description yet",
+            "tag": "Personal",
+            "avatar": 0,
+            "tasks": 0,
+            "skills": 5,
+            "tenantId": "personal-alex",
+            "resourceOwnerId": "m1",
+            "visibility": "private",
+            "sharedMemberIds": []
+          },
+          {
+            "id": "a2",
+            "name": "技术顾问",
+            "description": "解答软件开发与故障排查问题，评审系统架构，并讲解机器学习、大模型、RAG、Agent 等 AI 基础知识。",
+            "tag": "Personal",
+            "avatar": 1,
+            "tasks": 0,
+            "skills": 4,
+            "tenantId": "personal-alex",
+            "resourceOwnerId": "m1",
+            "visibility": "private",
+            "sharedMemberIds": []
+          },
+          {
+            "id": "a3",
+            "name": "Codex 工作助手",
+            "description": "擅长代码开发、资料分析、技术方案、产品文档、汇报材料、项目规划及各类办公文件处理。",
+            "tag": "Personal",
+            "avatar": 2,
+            "tasks": 0,
+            "skills": 0,
+            "tenantId": "personal-alex",
+            "resourceOwnerId": "m1",
+            "visibility": "private",
+            "sharedMemberIds": []
+          },
+          {
+            "id": "a4",
+            "name": "产品经理搭档",
+            "description": "帮助产品团队梳理需求、分析用户问题、规划产品路线并复盘交付，输出可执行的产品方案。",
+            "tag": "Personal",
+            "avatar": 3,
+            "tasks": 0,
+            "skills": 10,
+            "tenantId": "personal-alex",
+            "resourceOwnerId": "m1",
+            "visibility": "private",
+            "sharedMemberIds": []
+          },
+          {
+            "id": "a5",
+            "name": "智能体小队",
+            "description": "工作空间的默认智能体小队，由队长统筹安排成员间的协作。",
+            "tag": "Personal",
+            "avatar": 5,
+            "tasks": 0,
+            "skills": 1,
+            "tenantId": "personal-alex",
+            "resourceOwnerId": "m1",
+            "visibility": "private",
+            "sharedMemberIds": []
+          }
+        ],
+        "tasks": [],
+        "projects": [],
+        "library": [],
+        "automations": [],
+        "teamMembers": [
+          {
+            "id": "m1",
+            "userId": "u-alex",
+            "name": "Alex",
+            "email": "alex@example.com",
+            "role": "owner",
+            "status": "active",
+            "departmentId": "",
+            "tenantId": "personal-alex"
+          }
+        ],
+        "teamAgentIds": [],
+        "teamActivity": [],
+        "departments": [],
+        "enterprise": {
+          "name": "Alex",
+          "id": "personal-alex"
+        },
+        "hideQuick": false,
+        "proactive": false,
+        "ecosystemBindings": [],
+        "ecosystemSchemaVersion": 2,
+        "channelRuns": [],
+        "scenarioDrafts": [],
+        "invitations": [],
+        "connections": [],
+        "tenantId": "personal-alex",
+        "spaceType": "personal"
+      }
+    },
+    {
+      "id": "wx-demo",
+      "type": "organization",
+      "name": "WorkX",
+      "data": {
+        "agents": [
+          {
+            "id": "a1",
+            "name": "我的智能伙伴",
+            "description": "No description yet",
+            "tag": "Personal",
+            "avatar": 0,
+            "tasks": 17,
+            "skills": 5,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "a2",
+            "name": "技术顾问",
+            "description": "解答软件开发与故障排查问题，评审系统架构，并讲解机器学习、大模型、RAG、Agent 等 AI 基础知识。",
+            "tag": "Team",
+            "avatar": 1,
+            "tasks": 0,
+            "skills": 4,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "space"
+          },
+          {
+            "id": "a3",
+            "name": "Codex 工作助手",
+            "description": "擅长代码开发、资料分析、技术方案、产品文档、汇报材料、项目规划及各类办公文件处理。",
+            "tag": "Third-party",
+            "avatar": 2,
+            "tasks": 0,
+            "skills": 0,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "a4",
+            "name": "产品经理搭档",
+            "description": "帮助产品团队梳理需求、分析用户问题、规划产品路线并复盘交付，输出可执行的产品方案。",
+            "tag": "",
+            "avatar": 3,
+            "tasks": 1,
+            "skills": 10,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "a5",
+            "name": "智能体小队",
+            "description": "工作空间的默认智能体小队，由队长统筹安排成员间的协作。",
+            "tag": "Squads",
+            "avatar": 5,
+            "tasks": 0,
+            "skills": 1,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "space"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "t1",
+            "name": "整理产品自动化测试方法说明草稿",
+            "date": "10/29 19:06",
+            "agent": "a1",
+            "status": "done",
+            "project": "p1",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t2",
+            "name": "创建周报自动生成编排技能",
+            "date": "10/29 17:54",
+            "agent": "a1",
+            "status": "done",
+            "unread": true,
+            "project": "p2",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t3",
+            "name": "生成本周周报",
+            "date": "10/28 14:03",
+            "agent": "a1",
+            "status": "done",
+            "project": "p3",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t4",
+            "name": "咨询自定义 MCP Server 接入方法",
+            "date": "10/28 10:25",
+            "agent": "a1",
+            "status": "done",
+            "project": "p2",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t5",
+            "name": "通过搜索整理行业相关内容",
+            "date": "10/27 16:59",
+            "agent": "a1",
+            "status": "done",
+            "project": "p1",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t6",
+            "name": "了解智能伙伴的能力范围",
+            "date": "10/27 15:50",
+            "agent": "a1",
+            "status": "done",
+            "project": "p3",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t7",
+            "name": "总结昨日工作日报",
+            "date": "10/26 19:33",
+            "agent": "a1",
+            "status": "done",
+            "project": "p3",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t8",
+            "name": "撰写团队共享模板功能产品需求说明",
+            "date": "10/26 18:33",
+            "agent": "a4",
+            "status": "done",
+            "project": "p1",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t9",
+            "name": "查询近期周报",
+            "date": "10/25 18:37",
+            "agent": "a1",
+            "status": "done",
+            "project": "p3",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "t10",
+            "name": "本周大模型与 Agent 技术动态调研",
+            "date": "10/24 19:28",
+            "agent": "a1",
+            "status": "done",
+            "project": "p2",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          }
+        ],
+        "automations": [
+          {
+            "id": "au1",
+            "name": "每周工作报告",
+            "description": "汇总本周完成的任务、关键成果和下周计划，生成一份结构清晰的周报。",
+            "schedule": "Every Friday at 17:00",
+            "enabled": true,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "au2",
+            "name": "每日行业资讯简报",
+            "description": "精选 AI 与产品设计领域的重要动态，整理值得关注的观点和趋势。",
+            "schedule": "Every weekday at 09:00",
+            "enabled": true,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "au3",
+            "name": "项目进度回顾",
+            "description": "梳理项目里程碑、交付进展与需要关注的风险。",
+            "schedule": "Every Monday at 10:00",
+            "enabled": false,
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          }
+        ],
+        "projects": [
+          {
+            "id": "p1",
+            "name": "产品体验升级",
+            "description": "探索更自然、高效的产品体验，让每个细节都恰到好处。",
+            "tasks": 3,
+            "updated": "Today",
+            "color": "blue",
+            "memberIds": [
+              "m1",
+              "m2",
+              "m3"
+            ],
+            "agentIds": [
+              "a1",
+              "a4"
+            ],
+            "sharedContext": "",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "p2",
+            "name": "AI 工作流探索",
+            "description": "从真实场景出发，与智能伙伴共同构建下一代工作方式。",
+            "tasks": 3,
+            "updated": "Yesterday",
+            "color": "purple",
+            "memberIds": [
+              "m1",
+              "m2",
+              "m3"
+            ],
+            "agentIds": [
+              "a1"
+            ],
+            "sharedContext": "",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          },
+          {
+            "id": "p3",
+            "name": "团队知识库",
+            "description": "沉淀方法、共享经验，让好想法成为团队共同的财富。",
+            "tasks": 4,
+            "updated": "Oct 27",
+            "color": "green",
+            "memberIds": [
+              "m1",
+              "m2",
+              "m3"
+            ],
+            "agentIds": [
+              "a1"
+            ],
+            "sharedContext": "",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "project"
+          }
+        ],
+        "library": [
+          {
+            "id": "f1",
+            "name": "产品体验优化方案",
+            "type": "doc",
+            "updated": "Today",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "f2",
+            "name": "团队季度项目汇报",
+            "type": "slides",
+            "updated": "Yesterday",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "f3",
+            "name": "项目任务跟踪清单",
+            "type": "sheet",
+            "updated": "Oct 28",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "f4",
+            "name": "智能伙伴使用指南",
+            "type": "doc",
+            "updated": "Oct 27",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "f5",
+            "name": "AI 工作流设计提案",
+            "type": "slides",
+            "updated": "Oct 26",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          },
+          {
+            "id": "f6",
+            "name": "产品需求优先级评估",
+            "type": "sheet",
+            "updated": "Oct 25",
+            "tenantId": "wx-demo",
+            "resourceOwnerId": "m1",
+            "visibility": "private"
+          }
+        ],
+        "hideQuick": false,
+        "proactive": false,
+        "tenantId": "wx-demo",
+        "spaceType": "organization",
+        "enterprise": {
+          "id": "wx-demo",
+          "name": "WorkX"
+        },
+        "teamMembers": [
+          {
+            "id": "m1",
+            "name": "Alex",
+            "role": "owner",
+            "departmentId": "",
+            "status": "active",
+            "tenantId": "wx-demo",
+            "email": "alex@example.com"
+          },
+          {
+            "id": "m2",
+            "name": "Lin",
+            "role": "admin",
+            "departmentId": "",
+            "status": "active",
+            "tenantId": "wx-demo",
+            "email": ""
+          },
+          {
+            "id": "m3",
+            "name": "Chen",
+            "role": "member",
+            "departmentId": "",
+            "status": "active",
+            "tenantId": "wx-demo",
+            "email": ""
+          }
+        ],
+        "departments": [],
+        "teamAgentIds": [
+          "a2",
+          "a5"
+        ],
+        "teamActivity": [],
+        "scenarioDrafts": [],
+        "ecosystemBindings": [],
+        "ecosystemSchemaVersion": 2,
+        "channelRuns": [],
+        "invitations": [],
+        "connections": []
+      }
+    }
+  ]
+}

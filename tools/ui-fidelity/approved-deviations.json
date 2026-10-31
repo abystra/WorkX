@@ -1,0 +1,4 @@
+{
+  "_comment": "Visual differences approved by product/design. Each entry needs a reason category (accessibility, security, confirmed-product-requirement, architectural-constraint), the decision reference, and the states it affects. Empty until the first production screen is compared.",
+  "deviations": []
+}

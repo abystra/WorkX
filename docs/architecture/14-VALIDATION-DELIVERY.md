@@ -34,6 +34,8 @@ Ordered by risk × impact. Each spike is time-boxed and ends with a written resu
 | Artifact | XLSX produced in `outputs/`, validated, stored, downloadable | Previews |
 | Ops | OTel traces end-to-end, audit events, usage events | Dashboards beyond basics |
 
+UI: the slice's screens (shell, composer, conversation, library preview) use the ported prototype stylesheets and markup; their catalog states pass `tools/ui-fidelity` comparison in both languages at 1440×900 (Part 15 §8).
+
 Acceptance: user in org A submits "Build a spreadsheet of top accounts from the CRM test API"; sees streaming progress and a tool step; downloads a valid XLSX; a user in org B cannot list/read the task or artifact (API and direct object URL); the sandbox memory/env contains no API key or Anthropic key (canary scan); cancel mid-run works; killing the orchestrator mid-run results in `interrupted` and a successful manual retry without duplicating the CRM write (test API counts calls).
 
 ## 3. Phased roadmap
@@ -48,7 +50,7 @@ Durations are ranges for the team in §7 and assume S-00 resolves to a supported
 | P3 Credentials | Classes 0/A/B/C | Broker, KeyProvider, connections UI, OAuth (Feishu user + MCP), needs_auth resume, ledger, revocation flows | 6–8 weeks (overlaps P2) |
 | P4 Knowledge | Grounded answers | Upload, Tika/OCR, chunking, embeddings, PG hybrid, citations, eval harness | 6–8 weeks (overlaps P3) |
 | P5 Feishu channel | Chat entry | Bindings, ingress, identity mapping, delivery, inbox UI | 4–6 weeks |
-| R1 hardening | Launch readiness | Isolation suite, security review/pen test, load/chaos, runbooks, DR drill | 4 weeks |
+| R1 hardening | Launch readiness | Isolation suite, security review/pen test, load/chaos, runbooks, DR drill, full UI fidelity pass (every catalog state pass or approved deviation) | 4 weeks |
 | R2 | Expansion | WeCom, Credential Worker (class D) + Feishu CLI, connector knowledge sync, automations, SSO, Meilisearch decision | 3–4 months |
 | R3 | Commercialization | Billing, plans/seats enforcement, directory sync, BYO keys, private deployment, regional cells | 4–6 months |
 
@@ -80,6 +82,12 @@ Indicative R1 calendar: **7–10 months** from start with 6–9 engineers. This 
 | B-20 | Retrieval tool + citations validation | B-19, B-11 | Citation precision ≥ target on benchmark; ACL tests T-KN-* |
 | B-21 | Feishu bot binding, ingress, identity linking, delivery, inbox UI | B-12, B-16, S-12 | J6 E2E; replayed event creates no duplicate |
 | B-22 | Security hardening, pen test fixes, runbooks, DR drill | all | No open high findings; restore drill within RTO |
+| B-UI-01 | Port prototype stylesheets, icon paths, avatars, i18n dictionaries; React shell (sidebar, account menu, workspace switcher, search, notifications, toast, overlay hooks) | B-01 | Shell catalog states pass `compare` (en, zh-CN, 1440×900) |
+| B-UI-02 | Fidelity test seed endpoint (test builds only) loading `tools/ui-fidelity/fixtures/prototype-seed.json`; implement `web` target in `targets.mjs` | B-03, B-UI-01 | `capture:web` runs every catalog step without step failures |
+| B-UI-03 | CI job: capture prototype + web, compare, publish contact sheet and diff summary as build artifacts; fail on `fail` verdicts | B-UI-02 | Job runs on every PR touching `apps/web` or `packages/ui` |
+| B-UI-04 | Design sign-off for new states and screens (auth pages, Knowledge, streaming/approval/needs-auth/partial, loading/error/permission) using existing patterns | B-UI-01 | Each new state added to the catalog as `new: true` with recorded approval |
+
+Every backlog item that delivers UI (B-06, B-08, B-12, B-13, B-14, B-16, B-17, B-19, B-21) additionally requires the Part 15 §8 acceptance criteria for its screens.
 
 ## 5. Test matrix
 
@@ -94,6 +102,7 @@ Indicative R1 calendar: **7–10 months** from start with 6–9 engineers. This 
 | Knowledge permissions | T-KN-01..10 | Unauthorized chunk never in top-K or snippet; revocation effective on next query; deleted source excluded immediately; revision pinning for running task; cross-tenant same filename; injection-flagged chunk labeling | Integration + eval |
 | Channel identity | T-CH-01..10 | Payload claims another tenant (ignored); signature failure; replayed event; unmapped sender; display-name collision does not map; binding paused mid-task → delivery blocked; group reply policy hides private content; Feishu tenant key mismatch | Integration with recorded fixtures + staging app |
 | Performance | T-PERF-* | SSE fan-out 5k streams; 200 concurrent attempts; retrieval p95 < 300 ms at 10M chunks [VALIDATE] | Load tests |
+| UI fidelity | T-UI-* | Every catalog state (Part 15) in en and zh-CN at 1440×900 (plus 1280×800 subset): pixel compare pass/approved, steps succeed, no console errors or horizontal overflow, keyboard behaviors, axe scan with no new violations | Visual + E2E (CI) |
 | Agent evaluation | T-EVAL-* | Golden tasks pass rate ≥ baseline; red-team injection scenarios blocked | Nightly |
 
 ## 6. Prototype and documents versus proposed production system
@@ -113,7 +122,8 @@ Indicative R1 calendar: **7–10 months** from start with 6–9 engineers. This 
 | Feishu/WeCom | Wizard, params, simulated test, simulated inbound/delivery | Adapters, channel worker | Feishu in R1, WeCom R2 |
 | Execution vs delivery | Separated, retry semantics modeled | Separate state machines | Same |
 | Automations | Local config, no scheduler | Not designed in detail | R2 scheduler using jobs table |
-| Tests | 73 Node behavior tests | Validation lists | Full test matrix (§5) |
+| Tests | 73 Node behavior tests | Validation lists | Full test matrix (§5), including visual comparison against the prototype |
+| UI design | Approved baseline | Not specified | Reproduced exactly; deviations only with recorded reason and approval (Part 15 §5) |
 
 ## 7. Team, schedule, cost drivers (assumptions)
 
@@ -163,3 +173,6 @@ Indicative R1 calendar: **7–10 months** from start with 6–9 engineers. This 
 | **Q-12** | Are automations (scheduled tasks) needed in R1 for the first scenario? | Scheduler scope | P2 |
 | **Q-13** | Plans/quotas for personal vs organization (concurrency, budgets) | Admission control defaults | P2 |
 | **Q-14** | Is the "Code" mode (repository/terminal) a product priority for R2? | Runtime features (Git, larger sandboxes) | R2 planning |
+| **Q-15** | Where does Knowledge live in the UI? Proposed: inside Workmate detail "Work Context" plus a Library filter, with no new sidebar item | Knowledge has no prototype screen; a new nav item would change the approved IA | Before F4 |
+| **Q-16** | Approve darkening `--muted` (3.02:1 contrast) for accessibility, or keep the baseline color? | WCAG AA vs visual fidelity | Before F1 |
+| **Q-17** | Confirm replacement copy for simulation-only text (D-02), e.g. the "About this prototype" menu item | Production honesty vs fidelity | Before F1 |

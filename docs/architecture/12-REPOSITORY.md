@@ -20,8 +20,9 @@ WorkX/
 ├── apps/
 │   └── web/                          # React + TS SPA
 │       ├── src/app/                  # shell, router, providers (session, tenant, i18n, query)
-│       ├── src/features/             # home, tasks, agents, projects, library, knowledge,
-│       │                             # connections, inbox, admin/*, settings/*
+│       ├── src/features/             # mirrors prototype screens (docs/architecture/15-UI-FIDELITY.md §3):
+│       │                             # shell, home, tasks, agents, projects, library, automations, scenarios,
+│       │                             # code, channels, admin (team/:tab), settings, auth (new), knowledge (new)
 │       ├── src/platform/             # sse-manager, api hooks, error boundary, feature flags
 │       ├── src/locales/{en,zh-CN}/   # migrated from prototype messages-*.js
 │       └── tests/{unit,component,e2e}/
@@ -33,7 +34,7 @@ WorkX/
 │   │   ├── runner-protocol/*.schema.json
 │   │   └── connector-manifest/*.schema.json   # workx-skill.yaml, connector definitions
 │   ├── api-client/                   # generated TS types + thin fetch client
-│   ├── ui/                           # design tokens, primitives, icons (from prototype assets)
+│   ├── ui/                           # prototype stylesheets (verbatim), icon paths, avatars, overlay hooks
 │   └── runner-protocol-py/           # generated/handwritten Python models shared by runner & orchestrator
 │
 ├── services/
@@ -94,13 +95,15 @@ WorkX/
 │   ├── compose/                      # local dev stack (pg+pgvector+pg_jieba, valkey, seaweedfs, keycloak, tika, otel)
 │   └── policies/                     # network policies, egress allow-lists, OPA/conftest checks
 │
-├── tools/                            # codegen scripts, data seeders, local CLI
+├── tools/
+│   ├── ui-fidelity/                  # state catalog, capture, compare, contact sheet, seed fixture (exists)
+│   └── …                             # codegen scripts, data seeders, local CLI
 ├── docs/
 │   ├── README.md, ARCHITECTURE.md …  # existing docs, to be reconciled with this package
 │   ├── adr/                          # 0001…, new ADRs from Part 1 decision log
 │   ├── runbooks/                     # incidents, DLQ, key rotation, restore, tenant deletion, break-glass
 │   └── api/                          # rendered OpenAPI docs
-└── workmates-prototype/              # kept read-only as acceptance reference until F6
+└── workmates-prototype/              # approved UI baseline; kept runnable until every fidelity state passes
 ```
 
 ## 3. Dependency direction and enforcement

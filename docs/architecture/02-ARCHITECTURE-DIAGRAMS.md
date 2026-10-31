@@ -111,7 +111,7 @@ Key rules: the sandbox reaches only the two gateways (enforced by E2B egress rul
 ```mermaid
 flowchart TB
   subgraph Shell["App shell"]
-    RT["Router\n/t/:tenantSlug/..."]
+    RT["Router\n/t/:slug/(prototype page names)"]
     AUTH["Session + tenant context provider"]
     I18N["i18n (en, zh-CN)"]
     SW["Workspace switcher"]
@@ -122,19 +122,18 @@ flowchart TB
     AG["Partners (agents)\nconfig · versions · skills · knowledge"]
     PJ["Projects\nboard · members · context"]
     LIB["Library / artifacts\npreview · versions"]
-    KN["Knowledge sources"]
-    CON["Connections & credentials"]
-    ECO["Channels (Feishu/WeCom bindings)"]
-    INB["Channel inbox"]
-    AUTO["Automations (R2)"]
-    ORG["Org admin\nmembers · invites · roles · sharing · usage · audit"]
+    KN["Knowledge (new, inside Workmate Work Context + Library filter)"]
+    ECO["Ecosystem (Feishu/WeCom bindings + connection setup)"]
+    INB["Channel workbench"]
+    AUTO["Automations · Business scenarios · Code"]
+    ORG["Organization settings\ngeneral · members · roles · data & sharing · connections · usage · activity"]
     PS["Personal settings\nprofile · language · my workspaces"]
   end
   subgraph Platform["Shared frontend platform"]
     API_C["Generated API client\n(openapi-typescript + fetch)"]
     QRY["TanStack Query cache\n(key includes tenantId)"]
     SSE["SSE manager\nper task · resume by Last-Event-ID"]
-    DS["Design system\nRadix primitives + tokens"]
+    DS["Prototype stylesheets + icons\n(ported verbatim, same DOM/classes)"]
   end
   RT --> AUTH --> Features
   Features --> QRY --> API_C
@@ -144,7 +143,7 @@ flowchart TB
   SW --> AUTH
 ```
 
-Every query key and SSE subscription includes `tenantId`; switching workspace clears tenant-scoped caches and closes streams (Part 9 §4).
+Every query key and SSE subscription includes `tenantId`; switching workspace clears tenant-scoped caches and closes streams (Part 9 §4). Module boundaries follow the prototype's screens one to one; the screen-to-module map is Part 15 §3.
 
 ## B4. Backend domain modules and control-plane boundaries
 

@@ -100,7 +100,7 @@ Each conflict keeps the current direction in the provisional design unless the p
 | AD-08 | Credential storage: AEAD ciphertext in PostgreSQL (`secret_versions`), DEKs wrapped by `KeyProvider` (cloud KMS or OpenBao Transit). Only the Broker can unwrap. | Vault/OpenBao KV; Nango. | One store, versioned, auditable; Broker is a high-value target and is hardened accordingly. |
 | AD-09 | `needs_auth` ends the current Attempt, releases the sandbox lease, and a new Attempt starts after authorization; an operation ledger prevents duplicate side effects. | Hold sandbox paused while waiting. | No idle sandbox cost; resumption is explicit and safe. |
 | AD-10 | Knowledge R1: Tika 4 parser service + WorkX chunker + embeddings via Embedding Gateway + PostgreSQL FTS/pgvector hybrid with SQL-level ACL filter. | Meilisearch primary; OpenSearch; dedicated vector DB. | One consistent store; revocation is immediate; Meilisearch remains a measured candidate. |
-| AD-11 | Frontend: React + TypeScript + Vite SPA, TanStack Router/Query, generated OpenAPI client, SSE with server cookie auth, react-i18next. | Next.js; keep vanilla JS. | Matches [DOC]; SPA keeps backend authority in FastAPI. |
+| AD-11 | Frontend: React + TypeScript + Vite SPA, TanStack Router/Query, generated OpenAPI client, SSE with server cookie auth, react-i18next; **prototype UI reproduced exactly** (stylesheets, DOM, class names, icons, copy keys) and verified by visual comparison (Part 15). | Next.js; keep vanilla JS; new component library. | Matches [DOC] and [PO]; SPA keeps backend authority in FastAPI. |
 | AD-12 | Monorepo with `uv` (Python) and `pnpm` (TypeScript) workspaces; contracts generated from FastAPI OpenAPI and JSON Schema. | Multi-repo. | Atomic changes across API/contracts/web; import-linter enforces module direction. |
 
 ## 8. Decision log
@@ -133,3 +133,8 @@ Status values: **Approved** (product owner decided), **Provisional** (adopted fo
 | 22 | Use `allowed_tools` as a security allow-list | Rejected | — | `allowed_tools` auto-approves; unlisted tools remain available ([SDK permissions](https://code.claude.com/docs/en/agent-sdk/permissions) ✅) |
 | 23 | Use MinIO Community Edition for self-hosted object storage | Rejected for new deployments | Arch | Reported in maintenance/unmaintained state ([vonng blog](https://blog.vonng.com/en/db/minio-is-dead/) ⚠); verify on GitHub |
 | 24 | Durable workflow engine (Temporal) in R1 | Rejected for R1; growth path | Arch | Part 10 §1–2 triggers |
+| 25 | The prototype UI (`workmates-prototype/dist/`) is the approved design baseline; migrate without redesign | Approved | PO | Part 15 |
+| 26 | UI fidelity scope is the desktop web browser (1440×900, 1280×800); narrow/mobile layouts not in acceptance | Approved (2026-10-31) | PO | Part 15 §1.3 |
+| 27 | Port prototype stylesheets, DOM structure, class names, icons and i18n keys verbatim; no new component library | Provisional | Arch/Frontend | Part 15 §4.2 |
+| 28 | Adopt a third-party component library (e.g., Radix-based styling) for the production UI | Rejected | — | Would change DOM and styling of the approved baseline |
+| 29 | Contrast fix for `--muted` text (3.02:1) | Validation-required (PO/design) | PO | Part 15 D-04, Q-16 |

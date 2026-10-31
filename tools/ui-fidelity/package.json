@@ -1,0 +1,19 @@
+{
+  "name": "workx-ui-fidelity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Captures the approved prototype UI baseline and compares the production web app against it",
+  "scripts": {
+    "prototype:serve": "node ../../workmates-prototype/server.mjs",
+    "capture:prototype": "node capture.mjs --target prototype --out out/prototype",
+    "capture:web": "node capture.mjs --target web --out out/web",
+    "compare": "node compare.mjs --baseline out/prototype --candidate out/web --out out/diff",
+    "contact-sheet": "node contact-sheet.mjs --in out/prototype --out out/prototype-contact-sheet.html"
+  },
+  "devDependencies": {
+    "pixelmatch": "5.3.0",
+    "playwright": "1.63.0",
+    "pngjs": "7.0.0"
+  }
+}

@@ -23,9 +23,10 @@ This package turns the existing WorkX prototype and Chinese-language design docu
 | 12 | `12-REPOSITORY.md` | G. Monorepo layout and dependency rules |
 | 13 | `13-SECURITY-OPERATIONS.md` | H. Security, compliance, reliability, operations |
 | 14 | `14-VALIDATION-DELIVERY.md` | I. Spikes, vertical slice, roadmap, backlog, test matrix, team, open questions |
+| 15 | `15-UI-FIDELITY.md` | Prototype UI as approved baseline: inventory, migration map, tokens, missing states, deviations, visual verification, acceptance and handoff |
 | — | `99-SOURCES.md` | All external sources with verification status |
 
-Suggested reading order for a decision meeting: Part 1 → Part 14 §8 (open questions) → Part 2. Engineers estimating work should read Parts 3–7 and 11–12.
+Suggested reading order for a decision meeting: Part 1 → Part 14 §8 (open questions) → Part 2. Engineers estimating work should read Parts 3–7 and 11–12. Frontend engineers start with Part 15, which governs all UI work; the tooling it describes lives in `tools/ui-fidelity/`.
 
 ## Evidence base: what was actually inspected
 
