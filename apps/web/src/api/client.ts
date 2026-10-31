@@ -74,7 +74,10 @@ export const api = {
   updateConnection: (tenantId: string, id: string, patch: Record<string, unknown>) => req<Connection>('PATCH', `${t(tenantId)}/connections/${encodeURIComponent(id)}`, patch),
   /** Real API only (P-07): connector catalog, installation, and which workmates may use a shared connection. */
   connectors: (tenantId: string) => req<Connector[]>('GET', `${t(tenantId)}/connectors`),
-  installConnector: (tenantId: string, connectorId: string) => req<Connector>('PUT', `${t(tenantId)}/connectors/${encodeURIComponent(connectorId)}/installation`, { enabled: true }),
+  installConnector: (tenantId: string, connectorId: string, config: Record<string, string> = {}) => req<Connector>('PUT', `${t(tenantId)}/connectors/${encodeURIComponent(connectorId)}/installation`, { enabled: true, config }),
+  setClientSecret: (tenantId: string, connectorId: string, secret: string) => req<null>('PUT', `${t(tenantId)}/connectors/${encodeURIComponent(connectorId)}/client-secret`, { secret }),
+  /** OAuth: returns the provider URL to open; the provider redirects back to the API, then to `returnTo`. */
+  authorizeConnection: (tenantId: string, id: string, returnTo: string) => req<{ authorize_url: string }>('POST', `${t(tenantId)}/connections/${encodeURIComponent(id)}/authorize`, { return_to: returnTo }),
   bindConnection: (tenantId: string, id: string, agentIds: string[], tools: string[]) => req<unknown>('PUT', `${t(tenantId)}/connections/${encodeURIComponent(id)}/usage-policy`, { agentIds, tools }),
   setSharing: (tenantId: string, collection: string, id: string, body: Record<string, unknown>) => req<unknown>('PUT', `${t(tenantId)}/resources/${collection}/${encodeURIComponent(id)}/sharing`, body),
   activity: (tenantId: string) => req<ActivityEvent[]>('GET', `${t(tenantId)}/activity`),

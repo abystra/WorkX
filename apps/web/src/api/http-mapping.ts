@@ -294,6 +294,8 @@ export function plan(method: Method, path: string, body: any): Planned {
       method, path, out: mapConnection,
       body: { connector_id: body.connectorId, name: body.name, scope: body.ownerScope === 'space' ? 'tenant' : 'member', secret: body.secret || null },
     };
+  if ((match = t('connectors/([^/]+)/client-secret'))) return { method, path, body, out: () => null };
+  if ((match = t('connections/([^/]+)/authorize'))) return { method, path, body, out: identity };
   if ((match = t('connections/([^/]+)/usage-policy'))) return {
     method, path, out: identity,
     // Bound workmates may use every tool of the connector; no workmates bound means nobody uses it (Part 6 §2 rule 3).

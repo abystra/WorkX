@@ -179,6 +179,8 @@ export interface Connector {
   tools: string[];
   installed: boolean;
   enabled: boolean;
+  /** Settings asked for when installing (base_url, client_id; client_secret is sent to the broker). */
+  config_fields: string[];
 }
 
 export interface ActivityEvent {

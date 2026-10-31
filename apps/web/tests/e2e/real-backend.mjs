@@ -58,6 +58,22 @@ const card = await alex.page.textContent('.ws-connection');
 expect('P-07 CRM connection created and shown as connected', card.includes('Test CRM') && card.includes('Connected'), card);
 expect('P-07 the API key is not shown anywhere', !(await alex.page.content()).includes('dev-crm-key'));
 
+// P-07b: connect the Notes test service through OAuth (discovery, dynamic registration, PKCE) and come back.
+await alex.page.click('[data-action="space-add-connection"]');
+await alex.page.waitForSelector('select[name="connectorId"] option[value="notes"]', { state: 'attached' });
+await alex.page.fill('#space-connection-form input[name="name"]', 'My notes');
+await alex.page.selectOption('select[name="connectorId"]', 'notes');
+await alex.page.fill('#space-connection-form input[name="config.base_url"]', args.notes || 'http://127.0.0.1:8310/mcp');
+await alex.page.click('[data-action="space-save-connection"]');
+await alex.page.waitForURL(/:8310\/authorize/, { timeout: 15000 });
+expect('P-07b browser is sent to the provider with PKCE', /code_challenge_method=S256/.test(alex.page.url()), alex.page.url());
+await alex.page.click('button[value="allow"]');
+await alex.page.waitForURL(/\/team\/connections/, { timeout: 15000 });
+await alex.page.waitForTimeout(800);
+const notesCard = await alex.page.locator('.ws-connection', { hasText: 'My notes' }).textContent();
+expect('P-07b back in the app, Notes connection authorized', notesCard.includes('Connected'), notesCard);
+expect('P-07b the result is announced once and removed from the URL', !alex.page.url().includes('connection='), alex.page.url());
+
 // Start a task on the real API: runner → model gateway → tool gateway (CRM through the connection).
 await alex.page.goto(`${base}/t/${personalId}/home`);
 await alex.page.click('[data-action="nav"][data-page="new"]');

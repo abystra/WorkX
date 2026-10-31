@@ -188,6 +188,12 @@ function RealConnectionForm() {
         {connector?.auth === 'api_key'
           ? <Field label={t('web.conn.apiKey')}><input name="secret" type="password" required maxLength={8192} autoComplete="off" spellCheck={false} /></Field>
           : null}
+        {connector && !connector.installed ? connector.config_fields.map(f => (
+          <Field key={f} label={t('web.conn.config.' + f)}>
+            <input name={`config.${f}`} type={f === 'client_secret' ? 'password' : 'text'} maxLength={2000} autoComplete="off" spellCheck={false} required={f === 'base_url'} />
+          </Field>
+        )) : null}
+        {connector?.auth === 'oauth' ? <p className="ws-mini-note">{t('web.conn.oauthNote')}</p> : null}
         <Field label={t('spaces.connectionOwnership')}>
           <select name="ownerScope"><option value="member">{t('spaces.memberConnection')}</option>{ctx.canManage && connector?.identity !== 'user' ? <option value="space">{t('spaces.sharedConnection')}</option> : null}</select>
         </Field>
@@ -212,12 +218,24 @@ AddConnectionDialog.Footer = function Footer() {
     if (!connector) return;
     const shared = values.get('ownerScope') === 'space';
     const agentIds = values.getAll('agents').map(String);
+    const config: Record<string, string> = {};
+    for (const f of connector.config_fields) {
+      const value = String(values.get(`config.${f}`) || '').trim();
+      if (value && f !== 'client_secret') config[f] = value;
+    }
+    const clientSecret = String(values.get('config.client_secret') || '');
     const result = await ctx.run(async () => {
-      if (!connector.installed || !connector.enabled) await api.installConnector(ctx.tenantId, connector.id);
+      if (!connector.installed || !connector.enabled) await api.installConnector(ctx.tenantId, connector.id, config);
+      if (clientSecret) await api.setClientSecret(ctx.tenantId, connector.id, clientSecret);
       const created = await api.createConnection(ctx.tenantId, { connectorId: connector.id, name: values.get('name'), ownerScope: values.get('ownerScope'), secret: values.get('secret') || undefined });
       if (shared && agentIds.length) await api.bindConnection(ctx.tenantId, created.id, agentIds, connector.tools);
+      // OAuth: continue at the provider; it sends the browser back to this page.
+      if (connector.auth === 'oauth') {
+        const { authorize_url } = await api.authorizeConnection(ctx.tenantId, created.id, window.location.pathname);
+        window.location.assign(authorize_url);
+      }
       return created;
-    }, 'spaces.connectionRegistered');
+    }, connector.auth === 'oauth' ? undefined : 'spaces.connectionRegistered');
     if (result) overlay.close();
   };
   const save = async () => {

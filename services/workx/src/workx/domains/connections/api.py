@@ -48,6 +48,8 @@ class ConnectorOut(BaseModel):
     installed: bool
     enabled: bool
     allowed_tools: list[str] | None
+    # Settings an owner/admin provides when installing (client_secret goes to the client-secret endpoint).
+    config_fields: list[str] = Field(default_factory=list)
 
 
 @router.get("/tenants/{tenant_id}/connectors", summary="Connector catalog and this workspace's installations")
@@ -74,6 +76,7 @@ def connectors(tenant_id: str, principal: Authenticated, state: State) -> list[C
                     installed=installed,
                     enabled=bool(row.enabled) if row else c.default_installed,
                     allowed_tools=row.allowed_tools if row else None,
+                    config_fields=list(c.config_fields),
                 )
             )
         return out
@@ -131,6 +134,7 @@ def install(
             installed=True,
             enabled=body.enabled,
             allowed_tools=body.allowed_tools,
+            config_fields=list(connector.config_fields),
         )
 
 

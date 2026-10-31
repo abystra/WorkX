@@ -64,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
         ("tool-gateway", 8210),
         ("broker", 8220),
         ("dev-crm", 8300),
+        ("dev-notes", 8310),
         ("dev-model", 8400),
     ):
         gateway = sub.add_parser(name, help=f"run the {name}")

@@ -3276,6 +3276,11 @@ components:
             type: array
           - type: 'null'
           title: Allowed Tools
+        config_fields:
+          items:
+            type: string
+          type: array
+          title: Config Fields
       type: object
       required:
       - id

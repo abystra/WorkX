@@ -246,6 +246,9 @@ function Connections() {
             </div>
             <div className="ws-connection-meta">
               <span>{ctx.spaceName()} · {t(c.ownerScope === 'space' ? 'spaces.sharedConnection' : 'spaces.memberConnection')}</span>
+              {!ctx.runtime.simulated && c.authMode === 'oauth' && c.status !== 'active' && c.enabled && c.ownerId === ctx.selfId
+                ? <SpaceButton action="space-authorize-connection" label={t('web.conn.authorize')} primary data-id={c.id} onClick={() => void ctx.run(async () => { const r = await api.authorizeConnection(ctx.tenantId, c.id, window.location.pathname); window.location.assign(r.authorize_url); })} />
+                : null}
               <SpaceButton action="space-toggle-connection" label={t(c.enabled ? 'spaces.disable' : 'spaces.enable')} data-id={c.id} onClick={() => void ctx.run(() => api.updateConnection(ctx.tenantId, c.id, { enabled: !c.enabled }), 'spaces.saved')} />
             </div>
             {c.agentIds.length ? <div className="ws-bound-agents">{t('spaces.boundAgents')}：{c.agentIds.map(id => ws.agents.find(a => a.id === id)?.name || id).join('、')}</div> : null}

@@ -127,7 +127,14 @@ export function RealConversation({ task }: { task: Task }) {
             {retry}
           </div>
         ) : null}
-        {status === 'needs_auth' ? <div className="wx-run-ended"><p>{t('web.task.needsAuth')}</p>{retry}</div> : null}
+        {status === 'needs_auth' ? (
+          <div className="wx-run-ended">
+            <p>{t('web.task.needsAuth')}</p>
+            <p className="prototype-note">{t('web.task.needsAuthResume')}</p>
+            <button className="btn" data-action="task-connect" onClick={() => ctx.nav('team', 'connections')}>{t('web.task.connect')}</button>
+            {retry}
+          </div>
+        ) : null}
       </div>
     </>
   );

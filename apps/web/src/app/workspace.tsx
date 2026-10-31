@@ -63,6 +63,17 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
   const ui = useUi();
 
   // Tenant event stream: refresh lists, mark read when viewing, notify on completion (prototype startTask timer).
+  // Back from an OAuth provider (/api/v1/oauth/callback → ...?connection=<result>): say how it went, once.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('connection');
+    if (!result || !['authorized', 'denied', 'failed', 'invalid'].includes(result)) return;
+    params.delete('connection');
+    const rest = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    toast(t(`web.conn.result.${result}`));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!resolvedId) return;
     return getTransport().subscribe(resolvedId, event => {

@@ -97,7 +97,11 @@ Same dialog, same fields and order, with these differences:
 
 The connection card shows "Connected" for active connections and a rule line (`web.conn.bindingRule` or `web.conn.memberRule`) instead of "Association is a prototype record".
 
-**For review:** whether the auth method should be shown at all when it is fixed by the connector.
+- **Installing a connector from the dialog:** when the workspace has not installed the chosen connector yet and the user may install it, its settings appear as extra fields (Server URL, OAuth client ID, OAuth client secret as a password field).
+- **OAuth connectors:** a note says the user continues at the service after saving; Save then leaves for the provider. The card shows an **Authorize** button (primary) to the connection's owner while it needs authorization. On return, a toast reports authorized / cancelled / not accepted / expired link.
+- **Task waiting for authorization:** under the existing "needs access" text, a note that the task resumes by itself, an **Open connections** button, then Try again.
+
+**For review:** whether the auth method should be shown at all when it is fixed by the connector; whether connector installation belongs in this dialog or in a separate admin screen.
 
 ## 3. Changed wording (approved, decision 31 / Q-17, D-02)
 
