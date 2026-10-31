@@ -11,11 +11,11 @@ import uuid
 from dataclasses import dataclass
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from workx.core import ids
-from workx.core.db import Database
+from workx.core.db import Database, set_context
 from workx.core.errors import ApiError, conflict, forbidden, not_found, validation
 from workx.core.orm import utcnow
 from workx.core.settings import ApiSettings
@@ -148,7 +148,12 @@ def cancel(session: Session, actor: tenancy.Actor, invitation: Invitation) -> No
     )
 
 
-def _by_token(session: Session, token: str, *, lock: bool) -> Invitation:
+def _by_token(session: Session, token: str, *, lock: bool, principal_id: uuid.UUID | None = None) -> Invitation:
+    """The token is the only way in: find its tenant through the definer function, then work in that tenant."""
+    tenant_id = session.execute(text("SELECT workx_invitation_tenant(:d)"), {"d": tokens.digest(token)}).scalar()
+    if tenant_id is None:
+        raise ApiError(404, "INVITATION_NOT_FOUND", "This invitation link is not valid.")
+    set_context(session, tenant_id=tenant_id, principal_id=principal_id)
     query = select(Invitation).where(Invitation.token_digest == tokens.digest(token))
     if lock:
         query = query.with_for_update()
@@ -178,7 +183,7 @@ def preview(session: Session, token: str) -> Preview:
 
 
 def accept(session: Session, *, user: User, token: str) -> Membership:
-    invitation = _by_token(session, token, lock=True)
+    invitation = _by_token(session, token, lock=True, principal_id=user.id)
     if invitation.status == "accepted":
         # Replays by the same user return the same membership (idempotent acceptance).
         if invitation.consumed_by_user_id == user.id and invitation.accepted_membership_id:
@@ -238,9 +243,11 @@ def forbidden_mismatch() -> ApiError:
     return error
 
 
-def send_invitation_email(db: Database, settings: ApiSettings, mailer: Mailer, invitation_id: uuid.UUID) -> bool:
+def send_invitation_email(
+    db: Database, settings: ApiSettings, mailer: Mailer, invitation_id: uuid.UUID, tenant_id: uuid.UUID
+) -> bool:
     """Job handler for ``invitation.created``. Returns False when there is nothing to send any more."""
-    with db.transaction() as session:
+    with db.transaction(tenant_id=tenant_id) as session:
         invitation = session.get(Invitation, invitation_id)
         if invitation is None or invitation.status != "pending":
             return False

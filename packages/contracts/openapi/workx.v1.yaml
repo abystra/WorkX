@@ -622,6 +622,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/audit-events:
+    get:
+      tags:
+      - audit
+      summary: Audit log (owners and admins)
+      operationId: audit_events_api_v1_tenants__tenant_id__audit_events_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cursor
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -637,6 +680,70 @@ components:
       - tenant_id
       - membership_id
       title: AcceptOut
+    AuditOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        action:
+          type: string
+          title: Action
+        actor_membership_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Membership Id
+        target_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Type
+        target_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Id
+        data:
+          additionalProperties: true
+          type: object
+          title: Data
+        request_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Request Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - action
+      - actor_membership_id
+      - target_type
+      - target_id
+      - data
+      - request_id
+      - created_at
+      title: AuditOut
+    AuditPage:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AuditOut'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      - next_cursor
+      title: AuditPage
     DepartmentIn:
       properties:
         name:

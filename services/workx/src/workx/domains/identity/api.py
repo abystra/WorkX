@@ -104,7 +104,7 @@ class LogoutOut(BaseModel):
 
 @router.post("/auth/logout", summary="End this session")
 def logout(principal: Authenticated, state: State, response: Response) -> LogoutOut:
-    with state.db.transaction() as session:
+    with state.db.transaction(principal_id=principal.user_id) as session:
         login = session.get(LoginSession, principal.login_session.id)
         assert login is not None
         service.revoke_session(session, login, actor_user_id=principal.user_id, reason="logout")
@@ -151,7 +151,7 @@ class MePatch(BaseModel):
 
 @router.patch("/me", summary="Update profile")
 def update_me(body: MePatch, principal: Authenticated, state: State) -> MeOut:
-    with state.db.transaction() as session:
+    with state.db.transaction(principal_id=principal.user_id) as session:
         user = session.get(User, principal.user_id)
         assert user is not None
         if body.name is not None:
@@ -173,7 +173,7 @@ class PreferencesIn(BaseModel):
 @router.put("/me/preferences", status_code=204, summary="Remember the last workspace (navigation only)")
 def preferences(body: PreferencesIn, principal: Authenticated, state: State) -> Response:
     tenant_id = ids.decode("tenant", body.last_tenant_id)
-    with state.db.transaction() as session:
+    with state.db.transaction(principal_id=principal.user_id) as session:
         member = (
             tenant_id
             and session.execute(
@@ -202,7 +202,7 @@ class SessionOut(BaseModel):
 
 @router.get("/me/sessions", summary="Active sign-in sessions")
 def sessions(principal: Authenticated, state: State) -> list[SessionOut]:
-    with state.db.transaction() as session:
+    with state.db.transaction(principal_id=principal.user_id) as session:
         rows = service.active_sessions(session, principal.user_id)
     return [
         SessionOut(
@@ -219,7 +219,7 @@ def sessions(principal: Authenticated, state: State) -> list[SessionOut]:
 @router.delete("/me/sessions/{session_id}", status_code=204, summary="Sign out another session")
 def revoke(session_id: str, principal: Authenticated, state: State) -> Response:
     target = ids.decode("login_session", session_id)
-    with state.db.transaction() as session:
+    with state.db.transaction(principal_id=principal.user_id) as session:
         login = session.get(LoginSession, target) if target else None
         if login is None or login.user_id != principal.user_id:
             raise not_found()

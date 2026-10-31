@@ -49,6 +49,15 @@ def main(argv: list[str] | None = None) -> int:
     down.add_argument("revision")
     db_sub.add_parser("current")
 
+    worker = sub.add_parser("worker", help="run the background worker (outbox dispatch, jobs)")
+    worker.add_argument("--once", action="store_true", help="process what is ready, then exit")
+
+    jb = sub.add_parser("jobs", help="inspect the job queue")
+    jb_sub = jb.add_subparsers(dest="action", required=True)
+    jb_sub.add_parser("dead", help="list dead-lettered jobs")
+    jr = jb_sub.add_parser("retry", help="requeue a dead job")
+    jr.add_argument("job_id")
+
     dev = sub.add_parser("dev-oidc", help="run the local development OIDC issuer (never in production)")
     dev.add_argument("--host", default="127.0.0.1")
     dev.add_argument("--port", type=int, default=8100)
@@ -73,6 +82,31 @@ def main(argv: list[str] | None = None) -> int:
             "workx.entrypoints.api:create_app", factory=True, host=args.host, port=args.port, reload=args.reload
         )
         return 0
+
+    if args.command == "worker":
+        from workx.core.logging import configure
+        from workx.core.settings import ApiSettings
+        from workx.entrypoints.worker import run
+
+        configure(ApiSettings().log_level)
+        return run(once=args.once)
+
+    if args.command == "jobs":
+        import uuid
+
+        from workx.core.db import Database
+        from workx.core.settings import BaseWorkxSettings
+        from workx.platform import jobs
+
+        database = Database.connect(BaseWorkxSettings().database_url, pool_size=1)
+        if args.action == "dead":
+            for row in jobs.dead_letters(database):
+                finished = f"{row.finished_at:%Y-%m-%d %H:%M}" if row.finished_at else "-"
+                print(f"{row.id}  {row.kind:28}  attempts={row.attempts}  {finished}  {row.last_error}")
+            return 0
+        ok = jobs.retry(database, uuid.UUID(args.job_id))
+        print("requeued" if ok else "not a dead job")
+        return 0 if ok else 1
 
     if args.command == "dev-oidc":
         import uvicorn

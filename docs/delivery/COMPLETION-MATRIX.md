@@ -13,10 +13,10 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-01 | Monorepo, CI, contracts pipeline | P-01 | ✅ | ✅ | n/a | uv workspace, import-linter, OpenAPI check, tests on real PG. `.github/workflows/ci.yml` written but not yet run on GitHub |
 | B-02 | Identity: OIDC login, sessions, revocation | P-02 | ✅ | ✅ | ⛔ | Tested with the protocol-level dev issuer (`workx dev-oidc`) in-process and as real processes. Keycloak run blocked here (starting a downloaded server is not permitted); realm + `scripts/verify/keycloak_login.py` ready (infra/keycloak/README.md). SSE revocation check arrives with the event stream (P-04) |
 | B-03 | Tenancy: personal provisioning, orgs, memberships, roles | P-02 | ✅ | ✅ | n/a | 50-parallel first-login test, last-owner DB constraint, Part 3 §6.1 rules |
-| B-04 | Invitations with email outbox | P-02 | ✅ | 🟡 | ⬜ | Email handler tested with FileMailer; outbox→job dispatch arrives in P-03. Real: SMTP server |
-| B-05 | Authz, grants, RLS, isolation suite | P-03 | ⬜ | ⬜ | n/a | |
+| B-04 | Invitations with email outbox | P-02 | ✅ | ✅ | ⬜ | Outbox → worker → email tested end to end with FileMailer. Real: SMTP server |
+| B-05 | Authz, grants, RLS, isolation suite | P-03 | ✅ | ✅ | n/a | RLS on every tenant table for the runtime role; cross-tenant lookups only via named definer functions; T-ISO 01–08; Python evaluator and SQL `workx_can()` parity test. Project grants activate when projects exist (P-04). Membership cache (Valkey) not built: lookups hit PostgreSQL per request |
 | B-06 | Web shell/admin on real API | P-04 | 🟡 | 🟡 | n/a | UI done on the development adapter (commits be18467…2b2d603); real API pending |
-| B-07 | Jobs/outbox, reconciler, audit, usage events | P-03 | ⬜ | ⬜ | n/a | |
+| B-07 | Jobs/outbox, reconciler, audit, usage events | P-03 | ✅ | ✅ | n/a | PG queue with SKIP LOCKED leases, outbox fan-out dedupe, backoff, DLQ + `workx jobs dead/retry`, reconciler skeleton, audit API, idempotent usage metering |
 | B-08 | Agents: drafts, versions, publish, sharing, skills | P-04 | ⬜ | ⬜ | n/a | |
 | B-09 | Runtime release, E2B template, Runner v1 | P-05 | ⬜ | ⬜ | ⬜ | Real: E2B key |
 | B-10 | Model Gateway, budgets, usage | P-05 | ⬜ | ⬜ | ⬜ | Real: Anthropic key |

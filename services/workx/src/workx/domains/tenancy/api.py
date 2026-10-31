@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from workx.core import ids
 from workx.core.errors import ApiError, not_found
 from workx.core.orm import utcnow
+from workx.domains.audit import service as audit
 from workx.domains.identity.auth import Authenticated, State
 from workx.domains.identity.models import User
 from workx.domains.tenancy import invitations, service
@@ -121,8 +122,8 @@ def create_tenant(
 @router.get("/tenants/{tenant_id}", summary="Workspace detail")
 def get_tenant(tenant_id: str, principal: Authenticated, state: State) -> TenantOut:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        return _detail(session, service.actor_for(session, user_id=principal.user_id, tenant_id=tid))
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        return _detail(session, service.enter(session, user_id=principal.user_id, tenant_id=tid))
 
 
 class TenantPatch(BaseModel):
@@ -138,8 +139,8 @@ MEMBER_PREFERENCE_KEYS = {"hideQuick", "notificationsRead", "proactiveDismissed"
 @router.patch("/tenants/{tenant_id}", summary="Rename workspace, change settings or own preferences")
 def patch_tenant(tenant_id: str, body: TenantPatch, principal: Authenticated, state: State) -> TenantOut:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         if body.preferences is not None:
             unknown = set(body.preferences) - MEMBER_PREFERENCE_KEYS
             if unknown:
@@ -151,11 +152,28 @@ def patch_tenant(tenant_id: str, body: TenantPatch, principal: Authenticated, st
                 service.require_manager(actor)
             if body.name is not None:
                 actor.tenant.name = service.clean_name(body.name)
+                audit.record(
+                    session,
+                    "tenant.renamed",
+                    tenant_id=tid,
+                    actor_user_id=principal.user_id,
+                    actor_membership_id=actor.membership.id,
+                    target_type="tenant",
+                    target_id=tid,
+                )
             if body.settings is not None:
                 unknown = set(body.settings) - TENANT_SETTING_KEYS
                 if unknown:
                     raise ApiError(400, "VALIDATION_FAILED", f"Unknown settings: {', '.join(sorted(unknown))}")
                 actor.tenant.settings = {**actor.tenant.settings, **body.settings}
+                audit.record(
+                    session,
+                    "tenant.settings_changed",
+                    tenant_id=tid,
+                    actor_user_id=principal.user_id,
+                    actor_membership_id=actor.membership.id,
+                    data={"keys": sorted(body.settings)},
+                )
             actor.tenant.row_version += 1
         session.flush()
         return _detail(session, actor)
@@ -188,8 +206,8 @@ def _member(m: Membership, u: User) -> MemberOut:
 @router.get("/tenants/{tenant_id}/members", summary="Members (active and deactivated)")
 def members(tenant_id: str, principal: Authenticated, state: State) -> list[MemberOut]:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        service.enter(session, user_id=principal.user_id, tenant_id=tid)
         rows = session.execute(
             select(Membership, User)
             .join(User, User.id == Membership.user_id)
@@ -224,8 +242,8 @@ def patch_member(
     tenant_id: str, member_id: str, body: MemberPatch, principal: Authenticated, state: State
 ) -> MemberOut:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         target, user = _target(session, tid, member_id)
         fields = body.model_fields_set
         department: Any = ...
@@ -241,8 +259,8 @@ def patch_member(
 @router.delete("/tenants/{tenant_id}/members/{member_id}", status_code=204, summary="Remove a member, or leave")
 def remove_member(tenant_id: str, member_id: str, principal: Authenticated, state: State) -> Response:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         target, _ = _target(session, tid, member_id)
         service.remove_member(session, actor, target)
     return Response(status_code=204)
@@ -257,8 +275,8 @@ def transfer(tenant_id: str, body: TransferIn, principal: Authenticated, state: 
     if not principal.recently_authenticated(state.settings.reauth_window_minutes):
         raise ApiError(403, "REAUTH_REQUIRED", "Sign in again to confirm this change.")
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid, for_update=True)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid, lock_membership=True)
         target, _ = _target(session, tid, body.membership_id)
         service.transfer_ownership(session, actor, target)
     return Response(status_code=204)
@@ -286,8 +304,8 @@ def _department(d: Department) -> DepartmentOut:
 @router.get("/tenants/{tenant_id}/departments", summary="Departments (organization attribute)")
 def departments(tenant_id: str, principal: Authenticated, state: State) -> list[DepartmentOut]:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        service.enter(session, user_id=principal.user_id, tenant_id=tid)
         rows = session.execute(
             select(Department).where(Department.tenant_id == tid).order_by(Department.name)
         ).scalars()
@@ -297,8 +315,8 @@ def departments(tenant_id: str, principal: Authenticated, state: State) -> list[
 @router.post("/tenants/{tenant_id}/departments", status_code=201, summary="Create a department")
 def create_department(tenant_id: str, body: DepartmentIn, principal: Authenticated, state: State) -> DepartmentOut:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         service.require_writable(actor)
         service.require_manager(actor)
         parent = _decode("department", body.parent_id) if body.parent_id else None
@@ -309,6 +327,15 @@ def create_department(tenant_id: str, body: DepartmentIn, principal: Authenticat
         )
         session.add(department)
         session.flush()
+        audit.record(
+            session,
+            "department.created",
+            tenant_id=tid,
+            actor_user_id=principal.user_id,
+            actor_membership_id=actor.membership.id,
+            target_type="department",
+            target_id=department.id,
+        )
         return _department(department)
 
 
@@ -335,8 +362,8 @@ def _invitation(i: Invitation) -> InvitationOut:
 @router.get("/tenants/{tenant_id}/invitations", summary="Invitations (owners and admins)")
 def list_invitations(tenant_id: str, principal: Authenticated, state: State) -> list[InvitationOut]:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         service.require_manager(actor)
         invitations.expire_stale(session, tid)
         rows = session.execute(
@@ -355,8 +382,8 @@ def invite(
     tenant_id: str, body: InviteIn, principal: Authenticated, state: State, idempotency_key: IdempotencyKey = None
 ) -> JSONResponse:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
 
         def work() -> tuple[int, list[Any]]:
             created = invitations.create(session, actor, state.settings, emails=body.emails, role=body.role)
@@ -377,8 +404,8 @@ def invite(
 @router.post("/tenants/{tenant_id}/invitations/{invitation_id}/cancel", status_code=204, summary="Cancel an invitation")
 def cancel_invitation(tenant_id: str, invitation_id: str, principal: Authenticated, state: State) -> Response:
     tid = tenant_uuid(tenant_id)
-    with state.db.transaction(tenant_id=tid, principal_id=principal.user_id) as session:
-        actor = service.actor_for(session, user_id=principal.user_id, tenant_id=tid)
+    with state.db.transaction(principal_id=principal.user_id) as session:
+        actor = service.enter(session, user_id=principal.user_id, tenant_id=tid)
         invitation = session.get(Invitation, _decode("invitation", invitation_id), with_for_update=True)
         if invitation is None or invitation.tenant_id != tid:
             raise not_found()

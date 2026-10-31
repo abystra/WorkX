@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from workx.core import context, ids
+from workx.core.orm import utcnow
 from workx.core.redaction import redact
 from workx.domains.audit.models import AuditEvent
 
@@ -32,5 +33,8 @@ def record(
             target_id=target_id,
             data=redact(data or {}),
             request_id=context.request_id.get() or None,
+            # Every value is supplied so the insert needs no RETURNING: the runtime role may write audit rows
+            # it cannot read back (tenant-less rows, Part 11 §6).
+            created_at=utcnow(),
         )
     )

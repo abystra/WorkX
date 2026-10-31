@@ -36,11 +36,11 @@ def test_unsafe_return_to_is_ignored(client: TestClient, oidc: TestClient) -> No
     assert done.headers["location"] == "http://web.test/"
 
 
-def test_unverified_email_is_refused(client: TestClient, oidc: TestClient, db: Database) -> None:
+def test_unverified_email_is_refused(client: TestClient, oidc: TestClient, owner_db: Database) -> None:
     email = "unverified-" + unique_email()
     done = client.get(start_login(client, oidc, email), follow_redirects=False)
     assert error_of(done.headers["location"]) == "email_not_verified"
-    with db.transaction() as session:
+    with owner_db.transaction() as session:
         assert session.execute(select(User).where(User.primary_email == email)).first() is None
     assert client.get("/api/v1/me").status_code == 401
 
@@ -115,8 +115,8 @@ def test_sessions_expire_and_slide(client: TestClient, oidc: TestClient, owner_d
     assert client.get("/api/v1/me").json()["code"] == "UNAUTHENTICATED"
 
 
-def test_fifty_parallel_first_logins_create_one_personal_tenant(db: Database) -> None:
-    with db.transaction() as session:
+def test_fifty_parallel_first_logins_create_one_personal_tenant(db: Database, owner_db: Database) -> None:
+    with owner_db.transaction() as session:
         user = User(
             id=ids.uuid7(),
             idp_issuer="http://testserver",
@@ -128,12 +128,12 @@ def test_fifty_parallel_first_logins_create_one_personal_tenant(db: Database) ->
         session.add(user)
 
     def provision(_: int) -> None:
-        with db.transaction() as session:
+        with db.transaction(principal_id=user.id) as session:
             tenancy.ensure_personal_tenant(session, user_id=user.id, display_name="Racer")
 
     with ThreadPoolExecutor(max_workers=10) as pool:
         list(pool.map(provision, range(50)))
-    with db.transaction() as session:
+    with owner_db.transaction() as session:
         tenants = session.execute(
             select(func.count()).select_from(Tenant).where(Tenant.owner_user_id == user.id, Tenant.type == "personal")
         ).scalar_one()
@@ -150,3 +150,21 @@ def test_preferences_require_membership(client: TestClient, oidc: TestClient) ->
     assert client.get("/api/v1/me").json()["last_tenant_id"] == personal
     _, stranger_tenant = ids.new("tenant")
     assert client.put("/api/v1/me/preferences", json={"last_tenant_id": stranger_tenant}).status_code == 404
+
+
+def test_personal_provisioning_survives_prepared_statements(db: Database, owner_db: Database) -> None:
+    """psycopg prepares a statement after 5 executions; ON CONFLICT inference must still match the index."""
+    for _ in range(8):
+        with owner_db.transaction() as session:
+            user = User(
+                id=ids.uuid7(),
+                idp_issuer="http://testserver",
+                idp_subject=unique_email(),
+                primary_email=unique_email(),
+                email_verified_at=utcnow(),
+                display_name="Prepared",
+            )
+            session.add(user)
+        with db.transaction(principal_id=user.id) as session:
+            tenancy.ensure_personal_tenant(session, user_id=user.id, display_name="Prepared")
+            tenancy.ensure_personal_tenant(session, user_id=user.id, display_name="Prepared")

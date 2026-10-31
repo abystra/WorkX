@@ -12,10 +12,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from workx.core import ids
+from workx.core.db import set_context
 from workx.core.errors import ApiError
 from workx.core.orm import utcnow
 from workx.core.settings import ApiSettings
@@ -144,15 +145,21 @@ def upsert_user(session: Session, *, issuer: str, claims: dict[str, Any]) -> Use
         # Tenants are provisioned only for verified email addresses (Part 8 J1).
         raise OidcError("email_not_verified", "Verify your email address with the identity provider first.")
     name = str(claims.get("name") or claims.get("preferred_username") or email.split("@")[0])[:80]
-    user = session.execute(
-        select(User).where(User.idp_issuer == issuer, User.idp_subject == str(claims["sub"]))
-    ).scalar_one_or_none()
-    if user is None:
-        if session.execute(select(User.id).where(User.primary_email == email)).first():
+    # Runs before any principal is known, so RLS hides users: use the narrow definer lookup.
+    matches = session.execute(
+        text("SELECT user_id, by_subject FROM workx_user_for_login(:issuer, :subject, :email)"),
+        {"issuer": issuer, "subject": str(claims["sub"]), "email": email},
+    ).all()
+    by_subject = next((row.user_id for row in matches if row.by_subject), None)
+    if by_subject is None:
+        if matches:
             # One account per verified email (Part 3 §1). Linking a second identity is an explicit, later flow.
             raise OidcError("email_in_use", "This email already belongs to another WorkX account.")
+        new_id = ids.uuid7()
+        # INSERT ... RETURNING must also pass the SELECT policy: act as the new user from here on.
+        set_context(session, tenant_id=None, principal_id=new_id)
         user = User(
-            id=ids.uuid7(),
+            id=new_id,
             idp_issuer=issuer,
             idp_subject=str(claims["sub"]),
             primary_email=email,
@@ -163,11 +170,14 @@ def upsert_user(session: Session, *, issuer: str, claims: dict[str, Any]) -> Use
         session.add(user)
         session.flush()
         audit.record(session, "user.signed_up", actor_user_id=user.id)
-    else:
-        if user.status != "active":
-            raise OidcError("account_disabled", "This account is disabled.")
-        user.primary_email = email
-    return user
+        return user
+    set_context(session, tenant_id=None, principal_id=by_subject)
+    existing = session.get(User, by_subject)
+    assert existing is not None
+    if existing.status != "active":
+        raise OidcError("account_disabled", "This account is disabled.")
+    existing.primary_email = email
+    return existing
 
 
 @dataclass(frozen=True)
@@ -185,16 +195,18 @@ class Principal:
 
 
 def authenticate(session: Session, raw_token: str | None, settings: ApiSettings) -> Principal:
+    """Resolves the cookie and leaves the transaction in this principal's RLS context."""
     if not raw_token:
         raise ApiError(401, "UNAUTHENTICATED", "Sign in to continue.")
-    row = session.execute(
-        select(LoginSession, User)
-        .join(User, User.id == LoginSession.user_id)
-        .where(LoginSession.session_hash == tokens.digest(raw_token))
+    found = session.execute(
+        text("SELECT session_id, user_id FROM workx_session_by_hash(:h)"), {"h": tokens.digest(raw_token)}
     ).first()
-    if row is None:
+    if found is None:
         raise ApiError(401, "UNAUTHENTICATED", "Sign in to continue.")
-    login, user = row
+    set_context(session, tenant_id=None, principal_id=found.user_id)
+    login = session.get(LoginSession, found.session_id)
+    user = session.get(User, found.user_id)
+    assert login is not None and user is not None
     now = utcnow()
     if login.revoked_at is not None or user.status != "active":
         raise ApiError(401, "SESSION_REVOKED", "Your session was ended. Sign in again.")

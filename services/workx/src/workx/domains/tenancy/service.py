@@ -7,11 +7,12 @@ import secrets
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from workx.core import ids
+from workx.core.db import set_context
 from workx.core.errors import ApiError, conflict, forbidden, not_found, validation
 from workx.domains.audit import service as audit
 from workx.domains.tenancy.models import Department, Membership, Tenant
@@ -45,7 +46,8 @@ def _slugify(name: str) -> str:
 
 def _unique_slug(session: Session, base: str) -> str:
     candidate = base
-    while session.execute(select(Tenant.id).where(Tenant.slug == candidate)).first():
+    # Other tenants are invisible under RLS; ask the narrow definer function.
+    while session.execute(text("SELECT workx_slug_taken(:s)"), {"s": candidate}).scalar():
         candidate = f"{base}-{secrets.token_hex(3)}"
     return candidate
 
@@ -69,7 +71,9 @@ def ensure_personal_tenant(session: Session, *, user_id: uuid.UUID, display_name
             name=display_name,
             owner_user_id=user_id,
         )
-        .on_conflict_do_nothing(index_elements=["owner_user_id"], index_where=Tenant.type == "personal")
+        # Literal predicate: a bound parameter stops matching the partial index once psycopg prepares the
+        # statement server-side (after 5 executions), and ON CONFLICT inference would fail.
+        .on_conflict_do_nothing(index_elements=["owner_user_id"], index_where=text("type = 'personal'"))
     )
     tenant = session.execute(
         select(Tenant).where(Tenant.owner_user_id == user_id, Tenant.type == "personal")
@@ -96,6 +100,7 @@ def create_organization(session: Session, *, user_id: uuid.UUID, name: str) -> t
     membership = Membership(id=ids.uuid7(), tenant_id=tenant.id, user_id=user_id, role="owner")
     session.add(membership)
     session.flush()
+    set_context(session, tenant_id=tenant.id, principal_id=user_id)
     audit.record(
         session,
         "tenant.created",
@@ -110,20 +115,22 @@ def create_organization(session: Session, *, user_id: uuid.UUID, name: str) -> t
     return tenant, membership
 
 
-def actor_for(session: Session, *, user_id: uuid.UUID, tenant_id: uuid.UUID, for_update: bool = False) -> Actor:
-    """Resolves the tenant from the path and verifies an active membership (Part 3 §3). Missing → 404."""
-    query = (
+def enter(session: Session, *, user_id: uuid.UUID, tenant_id: uuid.UUID, lock_membership: bool = False) -> Actor:
+    """Resolves the tenant from the path, verifies an active membership, then sets the RLS tenant context
+    for the rest of the transaction (Part 3 §3). Unknown or foreign tenants are 404."""
+    row = session.execute(
         select(Tenant, Membership)
         .join(Membership, Membership.tenant_id == Tenant.id)
         .where(Tenant.id == tenant_id, Membership.user_id == user_id, Membership.status == "active")
         .where(Tenant.status.in_(("active", "suspended")))
-    )
-    if for_update:
-        query = query.with_for_update(of=Membership)
-    row = session.execute(query).first()
+    ).first()
     if row is None:
         raise not_found()
-    return Actor(user_id=user_id, tenant=row[0], membership=row[1])
+    set_context(session, tenant_id=tenant_id, principal_id=user_id)
+    tenant, membership = row
+    if lock_membership:
+        session.refresh(membership, with_for_update=True)
+    return Actor(user_id=user_id, tenant=tenant, membership=membership)
 
 
 def require_writable(actor: Actor) -> None:

@@ -38,7 +38,13 @@ def deliver(api_app: FastAPI, db: Database, tmp: Path, invitation_id: str) -> st
         )
     assert topics == ["invitation.created"]
     mailer = FileMailer(tmp, settings.mail_from)
-    assert invitations.send_invitation_email(db, settings, mailer, ids.decode("invitation", invitation_id))
+    with db.transaction() as session:
+        tenant_id = session.execute(
+            select(OutboxEvent.tenant_id).where(
+                OutboxEvent.payload["invitation_id"].astext == str(ids.decode("invitation", invitation_id))
+            )
+        ).scalar_one()
+    assert invitations.send_invitation_email(db, settings, mailer, ids.decode("invitation", invitation_id), tenant_id)
     message = email.message_from_bytes(sorted(tmp.glob("*.eml"), key=lambda p: p.stat().st_mtime)[-1].read_bytes())
     body = message.get_payload(decode=True).decode()
     match = re.search(r"http://web\.test/invite/([A-Za-z0-9_\-]+)", body)
@@ -55,7 +61,12 @@ def invite(owner: TestClient, org_id: str, emails: str, role: str = "member") ->
 
 
 def test_invite_deliver_preview_accept(
-    new_client: Callable[[], TestClient], oidc: TestClient, db: Database, api_app: FastAPI, tmp_path: Path
+    new_client: Callable[[], TestClient],
+    oidc: TestClient,
+    db: Database,
+    owner_db: Database,
+    api_app: FastAPI,
+    tmp_path: Path,
 ) -> None:
     owner, invitee = new_client(), new_client()
     sign_in(owner, oidc)
@@ -78,13 +89,18 @@ def test_invite_deliver_preview_accept(
     assert roles[address] == "admin"
     assert [i["status"] for i in owner.get(f"/api/v1/tenants/{org['id']}/invitations").json()] == ["accepted"]
     # The plaintext token is not stored anywhere.
-    with db.transaction() as session:
+    with owner_db.transaction() as session:
         row = session.get(Invitation, ids.decode("invitation", created["id"]))
         assert row is not None and token.encode() not in row.token_digest
 
 
 def test_wrong_email_expired_cancelled(
-    new_client: Callable[[], TestClient], oidc: TestClient, db: Database, api_app: FastAPI, tmp_path: Path
+    new_client: Callable[[], TestClient],
+    oidc: TestClient,
+    db: Database,
+    owner_db: Database,
+    api_app: FastAPI,
+    tmp_path: Path,
 ) -> None:
     owner, other = new_client(), new_client()
     sign_in(owner, oidc)
@@ -93,7 +109,7 @@ def test_wrong_email_expired_cancelled(
     first, second = invite(owner, org["id"], f"{unique_email()}, {unique_email()}")
     token = deliver(api_app, db, tmp_path, first["id"])
     assert other.post("/api/v1/invitations/accept", json={"token": token}).json()["code"] == "INVITATION_EMAIL_MISMATCH"
-    with db.transaction() as session:
+    with owner_db.transaction() as session:
         session.execute(
             update(Invitation)
             .where(Invitation.id == ids.decode("invitation", first["id"]))
@@ -104,9 +120,10 @@ def test_wrong_email_expired_cancelled(
     assert invitee.post("/api/v1/invitations/accept", json={"token": token}).json()["code"] == "INVITATION_EXPIRED"
     second_token = deliver(api_app, db, tmp_path, second["id"])
     assert owner.post(f"/api/v1/tenants/{org['id']}/invitations/{second['id']}/cancel").status_code == 204
-    assert not invitations.send_invitation_email(
-        db, api_app.state.workx.settings, FileMailer(tmp_path, "x"), ids.decode("invitation", second["id"])
-    )
+    tenant_id = ids.decode("tenant", org["id"])
+    second_id = ids.decode("invitation", second["id"])
+    settings = api_app.state.workx.settings
+    assert not invitations.send_invitation_email(db, settings, FileMailer(tmp_path, "x"), second_id, tenant_id)
     late = new_client()
     sign_in(late, oidc, second["email"])
     assert late.post("/api/v1/invitations/accept", json={"token": second_token}).json()["code"] == "INVITATION_CLOSED"
@@ -131,14 +148,14 @@ def test_batches_are_all_or_nothing(new_client: Callable[[], TestClient], oidc: 
     assert len(owner.get(url).json()) == 1
 
 
-def test_who_may_invite(new_client: Callable[[], TestClient], oidc: TestClient, db: Database) -> None:
+def test_who_may_invite(new_client: Callable[[], TestClient], oidc: TestClient, owner_db: Database) -> None:
     from tests.integration.test_tenancy import add_member
 
     owner, member = new_client(), new_client()
     sign_in(owner, oidc)
     member_me = sign_in(member, oidc)
     org = create_org(owner)
-    add_member(db, org["id"], member_me["id"])
+    add_member(owner_db, org["id"], member_me["id"])
     assert (
         member.post(
             f"/api/v1/tenants/{org['id']}/invitations", json={"emails": unique_email()}, headers=idem()
