@@ -11,9 +11,9 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | ID | Capability | Phase | Impl | Tests | Real | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | B-01 | Monorepo, CI, contracts pipeline | P-01 | ✅ | ✅ | n/a | uv workspace, import-linter, OpenAPI check, tests on real PG. `.github/workflows/ci.yml` written but not yet run on GitHub |
-| B-02 | Identity: OIDC login, sessions, revocation | P-02 | ⬜ | ⬜ | ⬜ | Real: Keycloak |
-| B-03 | Tenancy: personal provisioning, orgs, memberships, roles | P-02 | ⬜ | ⬜ | n/a | |
-| B-04 | Invitations with email outbox | P-02 | ⬜ | ⬜ | ⬜ | Real: SMTP |
+| B-02 | Identity: OIDC login, sessions, revocation | P-02 | ✅ | ✅ | ⛔ | Tested with the protocol-level dev issuer (`workx dev-oidc`) in-process and as real processes. Keycloak run blocked here (starting a downloaded server is not permitted); realm + `scripts/verify/keycloak_login.py` ready (infra/keycloak/README.md). SSE revocation check arrives with the event stream (P-04) |
+| B-03 | Tenancy: personal provisioning, orgs, memberships, roles | P-02 | ✅ | ✅ | n/a | 50-parallel first-login test, last-owner DB constraint, Part 3 §6.1 rules |
+| B-04 | Invitations with email outbox | P-02 | ✅ | 🟡 | ⬜ | Email handler tested with FileMailer; outbox→job dispatch arrives in P-03. Real: SMTP server |
 | B-05 | Authz, grants, RLS, isolation suite | P-03 | ⬜ | ⬜ | n/a | |
 | B-06 | Web shell/admin on real API | P-04 | 🟡 | 🟡 | n/a | UI done on the development adapter (commits be18467…2b2d603); real API pending |
 | B-07 | Jobs/outbox, reconciler, audit, usage events | P-03 | ⬜ | ⬜ | n/a | |
