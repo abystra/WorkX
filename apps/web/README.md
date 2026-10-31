@@ -9,9 +9,10 @@ React + TypeScript production frontend. The approved prototype (`workmates-proto
 | `pnpm dev` | Development adapter (in-browser, simulated execution, seeded with prototype data) | Local UI work |
 | `pnpm dev:fidelity` | Development adapter + test-only seed route `/__test__/seed` | Visual comparison (`tools/ui-fidelity`) |
 | `pnpm build:demo` / `pnpm preview:demo` | Development adapter, no test seed | Shareable demo build |
-| `pnpm build` | FastAPI control plane over `/api/v1` (`VITE_API_MODE=http`) | Production. Refuses test seeding; `scripts/check-production-bundle.mjs` fails if adapter, fixture or seed code is bundled |
+| `pnpm dev:api` | Real API on :8000 via proxy (`VITE_API_MODE=http`, port 5174); start everything with `scripts/dev/stack.sh start` | Local work against the backend |
+| `pnpm build` | Control plane over `/api/v1` (`VITE_API_MODE=http`) | Production. Refuses test seeding; `scripts/check-production-bundle.mjs` fails if adapter, fixture or seed code is bundled |
 
-The FastAPI backend does not exist yet, so a production build shows the load-error state until it does. See `docs/BACKEND-INTEGRATION.md`.
+What the real API serves today, and what still waits for later phases, is in `docs/BACKEND-INTEGRATION.md`.
 
 ## Structure
 
@@ -37,6 +38,12 @@ Browser checks for the new screens need the fidelity server running (`pnpm dev:f
 
 ```bash
 node tests/e2e/account-screens.mjs && node tests/e2e/knowledge.mjs
+```
+
+Journeys against the real API (needs `scripts/dev/stack.sh start`):
+
+```bash
+node tests/e2e/real-backend.mjs --mail ../../.local/run/mail
 ```
 
 Visual comparison against the prototype (serve the prototype on :4173 first) is described in `tools/ui-fidelity/README.md`; run it with `--viewports desktop,laptop` for the 1440×900 and 1280×800 check.

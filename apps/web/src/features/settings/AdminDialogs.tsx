@@ -93,7 +93,7 @@ export function SharingDialog({ collection, id }: { collection: Collection; id: 
             </div>
             <fieldset className="wx-team-fieldset" data-sharing-scope="selected" hidden={visibility !== 'selected'}>
               <legend>{t('spaces.chooseMembers')}</legend>
-              {ws.members.filter(m => m.status === 'active' && m.id !== 'm1').map(m => (
+              {ws.members.filter(m => m.status === 'active' && m.id !== ctx.selfId).map(m => (
                 <label className="wx-team-choice" key={m.id}><input type="checkbox" name="members" value={m.id} defaultChecked={resource.sharedMemberIds?.includes(m.id)} />{m.name}</label>
               ))}
             </fieldset>

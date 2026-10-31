@@ -1,5 +1,5 @@
 import { createRootRoute, createRoute, createRouter, Navigate, Outlet, useParams } from '@tanstack/react-router';
-import { useMe } from '@/api/hooks';
+import { useMe, useTenants } from '@/api/hooks';
 import { AppLayout } from './Layout';
 import { PAGES, WorkspaceProvider, useWs, type Page } from './workspace';
 import { NotFound } from './states';
@@ -10,8 +10,12 @@ const rootRoute = createRootRoute({ component: () => <Outlet /> });
 
 function RootRedirect() {
   const me = useMe();
-  if (!me.data) return null;
-  return <Navigate to={`/t/${me.data.lastTenantId}/home`} replace />;
+  const tenants = useTenants();
+  if (!me.data || !tenants.data) return null;
+  // A first sign-in has no remembered workspace yet: open the personal one (listed first).
+  const known = tenants.data.some(t => t.id === me.data.lastTenantId);
+  const target = known ? me.data.lastTenantId : tenants.data[0]?.id;
+  return target ? <Navigate to={`/t/${target}/home`} replace /> : null;
 }
 
 function TenantPage() {

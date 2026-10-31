@@ -21,6 +21,8 @@ export interface Me {
 
 export interface TenantSummary {
   id: string;
+  /** The signed-in user's own membership in this workspace. */
+  membershipId: string;
   slug: string;
   type: TenantType;
   name: string;
@@ -210,8 +212,9 @@ export interface ApiError { code: string; message: string; status: number }
 /** Event envelope (Part 11 §4). Tenant-level stream used for lists, toasts and task views. */
 /** Event types the UI reacts to on the tenant stream; anything else still triggers a refresh via onmessage. */
 export const TENANT_EVENT_TYPES = [
-  'task.queued', 'task.running', 'task.succeeded', 'task.failed', 'task.cancelled', 'task.interrupted',
-  'channel.run.updated', 'knowledge.source.updated', 'tenant.updated', 'membership.updated',
+  'task.queued', 'task.running', 'task.updated', 'task.succeeded', 'task.failed', 'task.cancelled', 'task.interrupted',
+  'agent.created', 'agent.updated', 'agent.deleted', 'project.created', 'project.updated', 'file.created',
+  'resource.sharing_changed', 'channel.run.updated', 'knowledge.source.updated', 'tenant.updated', 'membership.updated',
 ] as const;
 
 export interface WorkxEvent {

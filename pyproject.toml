@@ -30,6 +30,8 @@ target-version = "py312"
 src = ["services/workx/src", "services/workx/tests"]
 
 [tool.ruff.lint]
+# Chinese copy uses full-width punctuation on purpose.
+allowed-confusables = ["，", "。", "：", "（", "）"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
 ignore = [
   "S101",   # assert is fine in tests

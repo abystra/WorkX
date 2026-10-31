@@ -3132,6 +3132,22 @@ components:
             format: date-time
           - type: 'null'
           title: Finished At
+        answer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Answer
+        answer_file_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Answer File Id
+        follow_ups:
+          items:
+            type: string
+          type: array
+          title: Follow Ups
+          default: []
         messages:
           anyOf:
           - items:
@@ -3223,6 +3239,9 @@ components:
         id:
           type: string
           title: Id
+        membership_id:
+          type: string
+          title: Membership Id
         slug:
           type: string
           title: Slug
@@ -3258,6 +3277,7 @@ components:
       type: object
       required:
       - id
+      - membership_id
       - slug
       - type
       - name
@@ -3295,6 +3315,9 @@ components:
         id:
           type: string
           title: Id
+        membership_id:
+          type: string
+          title: Membership Id
         slug:
           type: string
           title: Slug
@@ -3316,6 +3339,7 @@ components:
       type: object
       required:
       - id
+      - membership_id
       - slug
       - type
       - name

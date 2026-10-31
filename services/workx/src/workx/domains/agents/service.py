@@ -143,3 +143,23 @@ def update(session: Session, actor: Actor, agent: Agent, body: dict[str, Any]) -
         data={"fields": sorted(body), "published": changed},
     )
     return changed
+
+
+STARTER = {
+    "en": ("My Workmate", "Your general-purpose workmate. Rename it or add skills any time."),
+    "zh-CN": ("我的智能伙伴", "通用智能伙伴，可随时重命名或添加能力。"),
+}
+
+
+def create_starter(session: Session, actor: Actor, *, locale: str) -> Agent:
+    """Every new workspace starts with one workmate, as in the approved prototype. Organization starters are
+    shared with all members (read/use); personal ones stay private."""
+    from workx.domains.authz import policy
+
+    name, description = STARTER.get(locale, STARTER["en"])
+    agent = create(session, actor, {"name": name, "description": description, "avatar": 0})
+    if actor.tenant.type == "organization":
+        agent.visibility = policy.set_sharing(
+            session, actor, "agent", agent, policy.Sharing("organization"), active_member_ids={actor.membership.id}
+        )
+    return agent

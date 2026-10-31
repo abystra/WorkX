@@ -62,7 +62,13 @@ def clean_name(value: str, *, field: str = "name", maximum: int = NAME_MAX) -> s
 
 
 def ensure_personal_tenant(session: Session, *, user_id: uuid.UUID, display_name: str) -> Tenant:
-    """Idempotent and safe under concurrent first logins: the partial unique index admits one personal tenant."""
+    """Idempotent and safe under concurrent first logins: the partial unique index admits one personal tenant.
+    Use ``provision_personal`` when the caller needs to know whether the workspace is new."""
+    return provision_personal(session, user_id=user_id, display_name=display_name)[0]
+
+
+def provision_personal(session: Session, *, user_id: uuid.UUID, display_name: str) -> tuple[Tenant, Membership | None]:
+    """Returns the personal tenant and, only when this call created it, the new owner membership."""
     tenant_id = ids.uuid7()
     session.execute(
         insert(Tenant)
@@ -80,12 +86,13 @@ def ensure_personal_tenant(session: Session, *, user_id: uuid.UUID, display_name
     tenant = session.execute(
         select(Tenant).where(Tenant.owner_user_id == user_id, Tenant.type == "personal")
     ).scalar_one()
-    session.execute(
+    created = session.execute(
         insert(Membership)
         .values(id=ids.uuid7(), tenant_id=tenant.id, user_id=user_id, role="owner")
         .on_conflict_do_nothing(index_elements=["tenant_id", "user_id"])
-    )
-    return tenant
+        .returning(Membership.id)
+    ).scalar()
+    return tenant, (session.get(Membership, created) if created else None)
 
 
 def create_organization(session: Session, *, user_id: uuid.UUID, name: str) -> tuple[Tenant, Membership]:

@@ -20,6 +20,7 @@ from workx.core.db import set_context
 from workx.core.errors import ApiError
 from workx.core.orm import utcnow
 from workx.core.settings import ApiSettings
+from workx.domains.agents import service as agents
 from workx.domains.audit import service as audit
 from workx.domains.identity import tokens
 from workx.domains.identity.models import LoginSession, OidcLoginTransaction, User
@@ -117,7 +118,11 @@ def complete_login(
     )
     claims = provider.verify_id_token(token_set["id_token"], nonce=transaction.nonce)
     user = upsert_user(session, issuer=provider.metadata()["issuer"], claims=claims)
-    tenancy.ensure_personal_tenant(session, user_id=user.id, display_name=user.display_name)
+    tenant, new_membership = tenancy.provision_personal(session, user_id=user.id, display_name=user.display_name)
+    if new_membership is not None:
+        actor = tenancy.enter(session, user_id=user.id, tenant_id=tenant.id)
+        agents.create_starter(session, actor, locale=user.locale)
+        set_context(session, tenant_id=None, principal_id=user.id)
     raw = tokens.random_token()
     now = utcnow()
     login = LoginSession(

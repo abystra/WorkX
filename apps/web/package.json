@@ -12,7 +12,8 @@
     "preview:demo": "vite preview --mode demo --outDir dist-demo --port 4174",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "messages:convert": "node scripts/convert-prototype-messages.mjs"
+    "messages:convert": "node scripts/convert-prototype-messages.mjs",
+    "dev:api": "vite --mode integration --port 5174 --strictPort"
   },
   "dependencies": {
     "@tanstack/react-query": "5.62.7",

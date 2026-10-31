@@ -15,9 +15,9 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-03 | Tenancy: personal provisioning, orgs, memberships, roles | P-02 | ✅ | ✅ | n/a | 50-parallel first-login test, last-owner DB constraint, Part 3 §6.1 rules |
 | B-04 | Invitations with email outbox | P-02 | ✅ | ✅ | ⬜ | Outbox → worker → email tested end to end with FileMailer. Real: SMTP server |
 | B-05 | Authz, grants, RLS, isolation suite | P-03 | ✅ | ✅ | n/a | RLS on every tenant table for the runtime role; cross-tenant lookups only via named definer functions; T-ISO 01–08; Python evaluator and SQL `workx_can()` parity test. Project grants activate when projects exist (P-04). Membership cache (Valkey) not built: lookups hit PostgreSQL per request |
-| B-06 | Web shell/admin on real API | P-04 | 🟡 | 🟡 | n/a | UI done on the development adapter (commits be18467…2b2d603); real API pending |
+| B-06 | Web shell/admin on real API | P-04 | ✅ | ✅ | n/a | Web http transport + mapping; browser journeys J1–J3 against the real API (`apps/web/tests/e2e/real-backend.mjs`, 14/14). ETag/If-Match and list pagination not yet (P-12). Connections/knowledge/channels screens wait for P-07..P-09 |
 | B-07 | Jobs/outbox, reconciler, audit, usage events | P-03 | ✅ | ✅ | n/a | PG queue with SKIP LOCKED leases, outbox fan-out dedupe, backoff, DLQ + `workx jobs dead/retry`, reconciler skeleton, audit API, idempotent usage metering |
-| B-08 | Agents: drafts, versions, publish, sharing, skills | P-04 | ⬜ | ⬜ | n/a | |
+| B-08 | Agents: drafts, versions, publish, sharing, skills | P-04 | ✅ | ✅ | n/a | Saving runtime fields publishes an immutable version (DB trigger); tasks pin versions; starter workmate per new workspace |
 | B-09 | Runtime release, E2B template, Runner v1 | P-05 | ⬜ | ⬜ | ⬜ | Real: E2B key |
 | B-10 | Model Gateway, budgets, usage | P-05 | ⬜ | ⬜ | ⬜ | Real: Anthropic key |
 | B-11 | Broker tickets, Tool Gateway (class 0/A), ledger | P-05 | ⬜ | ⬜ | n/a | |
@@ -33,7 +33,7 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-21 | Feishu bot channel, delivery, inbox | P-09 | 🟡 | 🟡 | ⬜ | UI on the development adapter only; Real: Feishu app |
 | B-22 | Security hardening, runbooks, DR drill | P-12 | ⬜ | ⬜ | ⬜ | Pen test needs an external party |
 | B-UI-01 | Prototype styles, icons, i18n, React shell | done | ✅ | ✅ | n/a | Fidelity 272/274 pass, 2 proposed deviations |
-| B-UI-02 | Fidelity test seed + web target | P-04 | 🟡 | ✅ | n/a | Adapter seed done; backend seed endpoint pending |
+| B-UI-02 | Fidelity test seed + web target | P-04 | 🟡 | ✅ | n/a | Adapter seed and web target done (272/274 pass). A backend seed endpoint for capturing fidelity against the real API is deferred to P-12, when every screen is API-backed |
 | B-UI-03 | CI fidelity job | P-12 | ⬜ | ⬜ | n/a | |
 | B-UI-04 | Design sign-off for new screens | — | 🟡 | n/a | n/a | Documented in apps/web/docs/NEW-SCREENS.md; sign-off is a human decision |
 | R2-1 | WeCom channel | P-09 | ⬜ | ⬜ | ⬜ | Real: WeCom app |

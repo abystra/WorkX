@@ -133,7 +133,7 @@ function Members() {
           {ws.members.map(m => (
             <div className="ws-member" key={m.id}>
               <span className="ws-mark">{m.name.slice(0, 1).toUpperCase()}</span>
-              <div><strong>{m.name} {m.id === 'm1' ? <small>{t('team.you')}</small> : null}</strong><span>{m.email || '—'}</span></div>
+              <div><strong>{m.name} {m.id === ctx.selfId ? <small>{t('team.you')}</small> : null}</strong><span>{m.email || '—'}</span></div>
               <span className="ws-pill">{t('team.role.' + m.role)}</span>
               <span className="ws-member-status">{t(m.status === 'disabled' ? 'spaces.disabled' : 'saas.active')}</span>
               {ctx.canManage ? (
@@ -210,7 +210,7 @@ function Resources() {
                 <span className="ws-resource-icon"><Icon name={collection === 'agents' ? 'robot' : collection === 'projects' ? 'folder' : 'file'} size={19} /></span>
                 <div><strong>{r.name}</strong><small>{t('spaces.ownerLabel', { name: ws.members.find(m => m.id === r.resourceOwnerId)?.name || '—' })} · {ctx.spaceName()}</small></div>
                 <span className="ws-pill">{t('spaces.scope.' + r.visibility)}</span>
-                {r.resourceOwnerId === 'm1' ? (
+                {r.resourceOwnerId === ctx.selfId ? (
                   <button className="text-btn" data-action="space-sharing" data-id={r.id} data-collection={collection}
                     onClick={() => overlay.modal(t('spaces.sharing'), <SharingDialog collection={collection} id={r.id} />, <SharingDialog.Footer collection={collection} id={r.id} />, { className: 'ws-dialog' })}>
                     {t('spaces.sharing')}

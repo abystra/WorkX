@@ -63,13 +63,44 @@ class TaskOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None
+    # Conversation summary for list views: the latest answer and the follow-ups after the first request.
+    answer: str | None = None
+    answer_file_id: str | None = None
+    follow_ups: list[str] = []
     messages: list[MessageOut] | None = None
 
 
+def _summary(messages: list[TaskMessage]) -> dict[str, Any]:
+    answers = [m for m in messages if m.role == "assistant"]
+    users = [m for m in messages if m.role == "user"]
+    latest = answers[-1] if answers else None
+    return {
+        "answer": latest.content if latest else None,
+        "answer_file_id": maybe("file", latest.file_id) if latest else None,
+        "follow_ups": [m.content for m in users[1:]],
+    }
+
+
+def _messages_by_task(session: Session, task_ids: list[Any]) -> dict[Any, list[TaskMessage]]:
+    grouped: dict[Any, list[TaskMessage]] = {t: [] for t in task_ids}
+    if task_ids:
+        for message in session.execute(
+            select(TaskMessage).where(TaskMessage.task_id.in_(task_ids)).order_by(TaskMessage.created_at)
+        ).scalars():
+            grouped[message.task_id].append(message)
+    return grouped
+
+
 def _out(
-    task: Task, state: TaskMemberState | None, actions: set[str], messages: list[TaskMessage] | None = None
+    task: Task,
+    state: TaskMemberState | None,
+    actions: set[str],
+    messages: list[TaskMessage] | None = None,
+    *,
+    include_messages: bool = False,
 ) -> TaskOut:
     return TaskOut(
+        **_summary(messages or []),
         id=ids.encode("task", task.id),
         name=task.name,
         status=task.status,
@@ -101,9 +132,9 @@ def _out(
                 file_id=maybe("file", m.file_id),
                 created_at=m.created_at,
             )
-            for m in messages
+            for m in messages or []
         ]
-        if messages is not None
+        if include_messages
         else None,
     )
 
@@ -130,7 +161,8 @@ def list_tasks(tenant_id: str, principal: Authenticated, state: State, include_a
             .all()
         )
         states = service.state_for(session, actor, [t.id for t in rows])
-        out = [_out(t, states.get(t.id), _actions(session, actor, t)) for t in rows]
+        conversations = _messages_by_task(session, [t.id for t in rows])
+        out = [_out(t, states.get(t.id), _actions(session, actor, t), conversations[t.id]) for t in rows]
         return out if include_archived else [t for t in out if not t.archived]
 
 
@@ -197,7 +229,13 @@ def get_task(tenant_id: str, task_id: str, principal: Authenticated, state: Stat
             .scalars()
             .all()
         )
-        return _out(task, service.state_for(session, actor, [task.id]).get(task.id), actions, list(messages))
+        return _out(
+            task,
+            service.state_for(session, actor, [task.id]).get(task.id),
+            actions,
+            list(messages),
+            include_messages=True,
+        )
 
 
 class TaskPatch(BaseModel):

@@ -69,12 +69,12 @@ def test_agent_sharing_and_admin_without_grant(team: Team) -> None:
     agent = team.agent(team.alice)
     url = f"{team.t}/agents/{agent['id']}"
     assert team.admin.get(url).status_code == 404  # management role ≠ content access
-    assert team.bob.get(f"{team.t}/agents").json() == []
+    assert agent["id"] not in {a["id"] for a in team.bob.get(f"{team.t}/agents").json()}
     shared = team.alice.put(f"{team.t}/resources/agents/{agent['id']}/sharing", json={"visibility": "organization"})
     assert shared.status_code == 200 and shared.json()["visibility"] == "organization"
     assert team.bob.get(url).json()["actions"] == ["read", "use"]
     assert team.bob.patch(url, json={"name": "Mine now"}).status_code == 403
-    assert team.alice.get(f"{team.t}/shared-agents").json() == [agent["id"]]
+    assert agent["id"] in team.alice.get(f"{team.t}/shared-agents").json()
     team.alice.put(
         f"{team.t}/resources/agents/{agent['id']}/sharing",
         json={"visibility": "selected", "member_ids": [team.members["bob"]], "actions": ["edit"]},
@@ -200,3 +200,30 @@ def test_event_stream_delivers_resumes_and_closes_on_revocation(
         assert team.alice.get(f"{team.t}/events").status_code == 401
     finally:
         settings.sse_revalidate_seconds = original
+
+
+def test_task_list_carries_conversation_summary(team: Team, owner_db: Database) -> None:
+    agent = team.agent(team.alice)
+    task = team.alice.post(f"{team.t}/tasks", json={"agent_id": agent["id"], "prompt": "First"}, headers=idem()).json()
+    team.alice.post(f"{team.t}/tasks/{task['id']}/messages", json={"prompt": "Second"})
+    with owner_db.transaction() as session:
+        session.execute(
+            text(
+                "INSERT INTO task_messages (id, tenant_id, task_id, role, content)"
+                " SELECT gen_random_uuid(), tenant_id, id, 'assistant', 'Here is the summary' FROM tasks WHERE id = :t"
+            ),
+            {"t": ids.decode("task", task["id"])},
+        )
+    [listed] = [t for t in team.alice.get(f"{team.t}/tasks").json() if t["id"] == task["id"]]
+    assert (
+        listed["answer"] == "Here is the summary" and listed["follow_ups"] == ["Second"] and listed["messages"] is None
+    )
+
+
+def test_new_workspaces_start_with_one_workmate(team: Team) -> None:
+    """Approved baseline: every workspace has a workmate to talk to. Org starters are shared; personal ones private."""
+    [starter] = [a for a in team.bob.get(f"{team.t}/agents").json() if a["name"] == "My Workmate"]
+    assert starter["visibility"] == "organization" and starter["actions"] == ["read", "use"]
+    personal = next(t for t in team.bob.get("/api/v1/me/tenants").json() if t["type"] == "personal")
+    [mine] = team.bob.get(f"/api/v1/tenants/{personal['id']}/agents").json()
+    assert mine["visibility"] == "private" and mine["version"] == 1

@@ -42,6 +42,7 @@ def _decode(kind: str, external: str) -> uuid.UUID:
 
 class TenantSummary(BaseModel):
     id: str
+    membership_id: str
     slug: str
     type: Literal["personal", "organization"]
     name: str
@@ -59,6 +60,7 @@ class TenantOut(TenantSummary):
 def _summary(tenant: Tenant, membership: Membership) -> TenantSummary:
     return TenantSummary(
         id=ids.encode("tenant", tenant.id),
+        membership_id=ids.encode("membership", membership.id),
         slug=tenant.slug,
         type=tenant.type,
         name=tenant.name,
@@ -104,7 +106,13 @@ def create_tenant(
     with state.db.transaction(principal_id=principal.user_id) as session:
 
         def work() -> tuple[int, dict[str, Any]]:
+            from workx.domains.agents.service import create_starter
+
             tenant, membership = service.create_organization(session, user_id=principal.user_id, name=body.name)
+            user = session.get(User, principal.user_id)
+            create_starter(
+                session, service.Actor(principal.user_id, tenant, membership), locale=user.locale if user else "en"
+            )
             return 201, _summary(tenant, membership).model_dump()
 
         status, payload = idempotency.run(

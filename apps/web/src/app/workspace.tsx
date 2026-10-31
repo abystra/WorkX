@@ -28,6 +28,8 @@ export interface WorkspaceCtx {
   /** Name shown for a workspace ("Personal workspace" for the personal tenant). */
   spaceName: (space?: TenantSummary) => string;
   canManage: boolean;
+  /** The signed-in user's membership id in this workspace. */
+  selfId: string;
   nav: (page: Page, id?: string) => void;
   switchWorkspace: (id: string, options?: { page?: Page; tab?: string; notice?: string; space?: TenantSummary }) => void;
   refresh: () => Promise<unknown>;
@@ -50,7 +52,9 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
   const t = useT();
   const me = useMe();
   const tenants = useTenants();
-  const resolvedId = tenantId || me.data?.lastTenantId;
+  // Settings pages have no tenant in the URL: use the remembered workspace, else the first one.
+  const remembered = me.data?.lastTenantId && tenants.data?.some(x => x.id === me.data?.lastTenantId) ? me.data.lastTenantId : undefined;
+  const resolvedId = tenantId || remembered || tenants.data?.[0]?.id;
   const { ws, error } = useWorkspace(resolvedId);
   const refresh = useRefresh();
   const navigate = useNavigate();
@@ -85,7 +89,8 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
     if (!ws || !me.data || !tenants.data || !resolvedId) return null;
     const current = tenants.data.find(x => x.id === resolvedId)!;
     const spaceName = (space = current) => (space.type === 'personal' ? t('spaces.personal') : space.name);
-    const canManage = current.type === 'organization' && ws.members.some(m => m.id === 'm1' && m.status === 'active' && ['owner', 'admin'].includes(m.role));
+    const selfId = current.membershipId;
+    const canManage = current.type === 'organization' && ws.members.some(m => m.id === selfId && m.status === 'active' && ['owner', 'admin'].includes(m.role));
     const nav: WorkspaceCtx['nav'] = (target, id) => {
       overlay.close();
       ui.set({
@@ -128,7 +133,7 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
     };
     return {
       tenantId: resolvedId, ws, me: me.data, tenants: tenants.data, current, runtime: getTransport().runtime, page, routeId, t,
-      spaceName, canManage, nav, switchWorkspace, refresh: () => refresh(resolvedId), run,
+      spaceName, canManage, selfId, nav, switchWorkspace, refresh: () => refresh(resolvedId), run,
     };
   }, [ws, me.data, tenants.data, resolvedId, page, routeId, t, getLocale()]); // eslint-disable-line react-hooks/exhaustive-deps
 

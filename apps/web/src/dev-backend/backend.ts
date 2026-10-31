@@ -100,7 +100,7 @@ export class DevBackend implements Transport {
 }
 
 const me = (data: SpaceData) => data.teamMembers.find((m: any) => m.id === 'm1');
-const summary = (space: Space) => ({ id: space.id, slug: space.id, type: space.type, name: space.data.enterprise.name, role: me(space.data)?.role || 'member' });
+const summary = (space: Space) => ({ id: space.id, membershipId: 'm1', slug: space.id, type: space.type, name: space.data.enterprise.name, role: me(space.data)?.role || 'member' });
 const requireManager = (data: SpaceData) => { if (!canManageSpace(data)) fail('spaces.noPermission', 403); };
 const findIn = (data: SpaceData, field: string, id: string) => data[field].find((r: any) => r.id === id) ?? fail('NOT_FOUND', 404);
 
