@@ -1,5 +1,5 @@
 import type {
-  ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, EcosystemBinding, Invitation, Me,
+  ModelOption, ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, EcosystemBinding, Invitation, Me,
   Member, Project, ScenarioDraft, Task, TenantDetail, TenantSummary,
 } from './contracts';
 import type { Transport } from './transport';
@@ -39,6 +39,7 @@ type CollectionTypes = { agents: Agent; tasks: Task; projects: Project; artifact
 
 export const api = {
   me: () => req<Me>('GET', '/me'),
+  models: () => req<ModelOption[]>('GET', '/models'),
   updateMe: (patch: { name?: string; notifications?: boolean }) => req<Me>('PATCH', '/me', patch),
   setLastTenant: (lastTenantId: string) => req<null>('PUT', '/me/preferences', { lastTenantId }),
   tenants: () => req<TenantSummary[]>('GET', '/me/tenants'),

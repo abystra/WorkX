@@ -41,6 +41,8 @@ async function runStep(page, step) {
   if (kind === 'click') await locatorFor(page, a, b && typeof b === 'object' ? b : {}).click({ timeout: 3000 });
   else if (kind === 'hover') await locatorFor(page, a).hover({ timeout: 3000 });
   else if (kind === 'fill') await locatorFor(page, a).fill(b, { timeout: 3000 });
+  else if (kind === 'select') await locatorFor(page, a).selectOption(b, { timeout: 3000 });
+  else if (kind === 'checkall') for (const box of await page.locator(a.slice(4)).locator('visible=true').all()) await box.check({ timeout: 3000 });
   else if (kind === 'press') await page.keyboard.press(a);
   else if (kind === 'wait') await page.waitForTimeout(a);
   else throw new Error(`Unknown step ${kind}`);

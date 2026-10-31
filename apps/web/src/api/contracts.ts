@@ -206,3 +206,6 @@ export interface RuntimeInfo {
   /** True when task execution, channels and connection tests are simulated. */
   simulated: boolean;
 }
+
+/** Model options come from the control plane (decision D-01: Claude model tiers only). */
+export interface ModelOption { id: string; label: string }

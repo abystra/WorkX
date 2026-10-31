@@ -13,6 +13,8 @@
 //   ['click', 'a:space-switch', {id: 'x'}]     -> [data-action="space-switch"][data-id="x"]
 //   ['click', 'css:.some-selector']
 //   ['fill', 'css:textarea', 'text']
+//   ['select', 'css:select[name=x]', 'value']
+//   ['checkall', 'css:input[name=confirmed]']      -> check every visible match
 //   ['hover', 'css:.task-row']                 -> reveal hover-only controls
 //   ['press', 'Escape']
 //   ['wait', 300]
@@ -27,6 +29,18 @@ export const VIEWPORTS = {
 
 const ORG = 'wx-demo';
 const PERSONAL = 'personal-alex';
+// Channel flow: create a Feishu app-bot binding, pass the simulated connection test, send a sample message.
+const addBinding = [
+  ['click', 'a:eco-add'], ['click', 'a:eco-platform', { value: 'feishu' }], ['click', 'a:eco-next'],
+  ['click', 'a:eco-method', { value: 'feishu-app-bot' }], ['click', 'a:eco-next'],
+  ['select', 'css:select[name="assignedAgent"]', 'a1'], ['click', 'a:eco-next'],
+  ['fill', 'css:input[name="name"]', 'OpsBot'], ['click', 'a:eco-save'], ['wait', 200],
+];
+const toAuthorization = [...addBinding, ['click', 'a:conn-sample'], ['click', 'a:conn-next']];
+const testPassed = [...toAuthorization, ['checkall', 'css:input[name="confirmed"]'], ['click', 'a:conn-next'], ['click', 'a:conn-test'], ['wait', 1800]];
+const compose = [...testPassed, ['click', 'a:conn-save'], ['wait', 3400], ['click', 'a:channel-compose'], ['click', 'a:channel-fill-sample']];
+const delivered = [...compose, ['click', 'a:channel-submit'], ['wait', 7000]];
+
 const toPersonal = [['click', 'a:profile'], ['click', 'a:space-switch', { id: PERSONAL }], ['wait', 300]];
 
 export const STATES = [
@@ -88,6 +102,13 @@ export const STATES = [
   { id: 'ecosystem', route: 'ecosystem', module: 'channels/ecosystem', target: '/t/:slug/ecosystem', full: true },
   { id: 'ecosystem-wizard-platform', route: 'ecosystem', steps: [['click', 'a:eco-add']], module: 'channels/ecosystem', target: 'dialog' },
   { id: 'ecosystem-wizard-method', route: 'ecosystem', steps: [['click', 'a:eco-add'], ['click', 'a:eco-platform'], ['click', 'a:eco-next']], module: 'channels/ecosystem', target: 'dialog', optional: true },
+  { id: 'connection-params', route: 'ecosystem', steps: addBinding, module: 'channels/connection', target: 'dialog' },
+  { id: 'connection-authorization', route: 'ecosystem', steps: toAuthorization, module: 'channels/connection', target: 'dialog' },
+  { id: 'connection-test-passed', route: 'ecosystem', steps: testPassed, module: 'channels/connection', target: 'dialog' },
+  { id: 'ecosystem-binding-ready', route: 'ecosystem', steps: [...testPassed, ['click', 'a:conn-save'], ['wait', 3400]], module: 'channels/ecosystem', target: '/t/:slug/ecosystem', full: true },
+  { id: 'channel-compose', route: 'ecosystem', steps: compose, module: 'channels/compose', target: 'dialog' },
+  { id: 'channel-task-delivered', route: 'ecosystem', steps: delivered, module: 'channels/task', target: '/t/:slug/task/:id (channel)', full: true },
+  { id: 'inbox-delivered', route: 'ecosystem', steps: [...delivered, ['click', 'a:nav', { page: 'inbox' }], ['wait', 200]], module: 'channels/inbox', target: '/t/:slug/inbox' },
 
   // ---- Organization administration (current org tenant)
   { id: 'org-general', route: 'team/general', module: 'admin', target: '/t/:slug/team/general' },

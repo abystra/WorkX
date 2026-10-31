@@ -11,6 +11,10 @@ export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: api.me });
 }
 
+export function useModels() {
+  return useQuery({ queryKey: ['models'], queryFn: api.models, staleTime: Infinity });
+}
+
 export function useTenants() {
   return useQuery({ queryKey: ['tenants'], queryFn: api.tenants });
 }

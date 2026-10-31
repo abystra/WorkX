@@ -69,6 +69,11 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
           if (viewing) await api.update(resolvedId, 'tasks', taskId, { unread: false });
           await refresh(resolvedId);
           if (me.data?.user.notifications && !viewing) toast(t('智能伙伴已完成演示任务'));
+        } else if (event.type === 'channel.run.updated' && event.payload.task_id) {
+          // A channel task stays read while the user is looking at it (prototype channel-model rule).
+          const taskId = String(event.payload.task_id);
+          if (window.location.pathname === `/t/${resolvedId}/task/${taskId}`) await api.update(resolvedId, 'tasks', taskId, { unread: false }).catch(() => undefined);
+          await refresh(resolvedId);
         } else {
           await refresh(resolvedId);
         }
@@ -89,8 +94,10 @@ export function WorkspaceProvider({ tenantId, page, routeId, children }: { tenan
         ...(target === 'project' ? { projectTab: 'tasks' } : {}),
       });
       if (target === 'new' && id) ui.setDrafts(resolvedId, { agent: id });
-      if (target === 'task' && id && ws.tasks.find(x => x.id === id)?.unread) {
-        void api.update(resolvedId, 'tasks', id, { unread: false }).then(() => refresh(resolvedId));
+      // A task created a moment ago (e.g. by a channel message) is not in this snapshot yet.
+      const known = target === 'task' && id ? ws.tasks.find(x => x.id === id) : undefined;
+      if (target === 'task' && id && (!known || known.unread)) {
+        void api.update(resolvedId, 'tasks', id, { unread: false }).then(() => refresh(resolvedId), () => undefined);
       }
       void navigate({ to: pathFor(resolvedId, target, id) });
       window.scrollTo(0, 0);

@@ -8,5 +8,7 @@ export const COPY_ADDITIONS: Record<string, { en: string; 'zh-CN': string }> = {
   'web.notFoundTitle': { en: 'This page is not available', 'zh-CN': '无法访问此页面' },
   'web.notFoundBody': { en: 'It may have been removed, or you may not have access in this workspace.', 'zh-CN': '内容可能已删除，或你在当前空间没有访问权限。' },
   'web.backHome': { en: 'Back to workbench', 'zh-CN': '返回工作台' },
+  'web.modelCaption': { en: 'Model', 'zh-CN': '模型' },
+  'web.chatFootnote': { en: 'Workmates can make mistakes. Review results before sharing them.', 'zh-CN': '智能伙伴可能出错，分享成果前请先确认内容。' },
   'web.requestFailed': { en: 'That did not work. Try again.', 'zh-CN': '操作未完成，请重试。' },
 };

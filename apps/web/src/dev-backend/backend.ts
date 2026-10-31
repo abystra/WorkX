@@ -6,6 +6,7 @@ import type { WorkxEvent } from '@/api/contracts';
 import { ApiRequestError, type Method, type Transport } from '@/api/transport';
 import { tStatic } from '@/i18n';
 import { freshSeed, loadRoot, saveRoot, type Root, type Space, type SpaceData } from './store';
+import { recoverChannelRuns, registerChannelRoutes } from './channels';
 import {
   canManageSpace, createOrganization, expireInvitations, inviteMembers, normalizeSpace, recordSpaceEvent, recordTeamEvent,
   resourceCollections, saveConnectionMetadata, transitionInvitation, uid, updateResourceSharing,
@@ -36,8 +37,11 @@ export class DevBackend implements Transport {
       normalizeSpace(space);
       // Prototype behavior: ordinary tasks that were running when the page closed finish on reload.
       for (const task of space.data.tasks) if (task.status === 'running' && task.kind !== 'channel') task.status = 'done';
+      // Channel runs in flight when the page closed become interrupted and wait for an explicit retry.
+      recoverChannelRuns(space.data);
     }
     registerCoreRoutes(this);
+    registerChannelRoutes(this);
   }
 
   route(method: Method, path: string, handler: Handler) {
@@ -104,6 +108,10 @@ function taskDate() {
 }
 
 function registerCoreRoutes(b: DevBackend) {
+  // Model tiers offered in the composer. The control plane owns this list (no model IDs in the frontend).
+  b.route('GET', '/models', () => [
+    { id: 'Auto', label: 'Auto' }, { id: 'claude-opus', label: 'Claude Opus' }, { id: 'claude-sonnet', label: 'Claude Sonnet' }, { id: 'claude-haiku', label: 'Claude Haiku' },
+  ]);
   b.route('GET', '/me', ({ root }) => ({ user: root.user, lastTenantId: root.activeSpaceId }));
   b.route('PATCH', '/me', ({ root, body, backend }) => {
     if (body.name !== undefined) {
@@ -204,6 +212,18 @@ function registerCoreRoutes(b: DevBackend) {
     const data = backend.space(params.t).data, task = findIn(data, 'tasks', params.id);
     if (body.name !== undefined) { const name = String(body.name).trim(); if (!name) fail('VALIDATION_FAILED'); task.name = name; }
     for (const key of ['pinned', 'archived', 'unread']) if (body[key] !== undefined) task[key] = !!body[key];
+    // Assignment and review (prototype team.js team-save-assignment / team-accept-task).
+    const project = data.projects.find((p: any) => p.id === task.project);
+    if (body.ownerId !== undefined) {
+      task.ownerId = data.teamMembers.some((m: any) => m.id === body.ownerId && (!project || project.memberIds.includes(m.id) || m.id === task.ownerId)) ? body.ownerId : '';
+      task.supportingAgentIds = data.agents.filter((a: any) => a.id !== task.agent && (!project || project.agentIds.includes(a.id)) && (body.supportingAgentIds || []).includes(a.id)).map((a: any) => a.id);
+      recordTeamEvent(data, 'assigned', { task: task.name, projectId: task.project || '' });
+    }
+    if (body.reviewState !== undefined) {
+      if (task.status !== 'done') fail('project.runningReview');
+      task.reviewState = body.reviewState === 'accepted' ? 'accepted' : 'review';
+      recordTeamEvent(data, task.reviewState === 'accepted' ? 'accepted' : 'reopened', { task: task.name, projectId: task.project || '' });
+    }
     backend.save();
     return task;
   });
@@ -222,6 +242,23 @@ function registerCoreRoutes(b: DevBackend) {
     data.projects.unshift(project);
     backend.save();
     return findIn(data, 'projects', project.id);
+  });
+  b.route('PATCH', '/tenants/:t/projects/:id', ({ params, body, backend }) => {
+    const data = backend.space(params.t).data, project = findIn(data, 'projects', params.id);
+    if (body.sharedContext !== undefined) {
+      project.sharedContext = String(body.sharedContext).trim().slice(0, 6000);
+      recordTeamEvent(data, 'contextChanged', { project: project.name, projectId: project.id });
+    }
+    if (body.memberIds !== undefined || body.agentIds !== undefined) {
+      const members = data.teamMembers.filter((m: any) => (body.memberIds || []).includes(m.id)).map((m: any) => m.id);
+      const agents = data.agents.filter((a: any) => (body.agentIds || []).includes(a.id)).map((a: any) => a.id);
+      if (!members.length || !agents.length) fail('project.rosterRequired');
+      project.memberIds = members;
+      project.agentIds = agents;
+      recordTeamEvent(data, 'rosterChanged', { project: project.name, projectId: project.id });
+    }
+    backend.save();
+    return project;
   });
   b.route('POST', '/tenants/:t/automations', ({ params, body, backend }) => {
     const data = backend.space(params.t).data;
