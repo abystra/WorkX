@@ -15,13 +15,13 @@ Screens use `src/api/client.ts` only. In http mode, `src/api/http-mapping.ts` tr
 
 ## 2. What runs on the real API today (verified)
 
-Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (14/14 checks), plus 71 API tests on PostgreSQL:
+Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (17/17 checks), plus the API test suite on PostgreSQL (`scripts/check.sh backend`):
 
 - **J1:** sign-in through the OIDC code flow. In this environment that means the development issuer; Keycloak uses the same protocol but is not yet verified here. A personal workspace and a starter workmate are created.
 - **J2:** create an organization and invite by email. The worker sends the email; the invitee follows the link, signs in and accepts.
 - **J3:** workspace separation (another user's private task is invisible; the member list is per workspace).
 - **Task execution:** a task started in the browser runs through the real orchestrator, runner, Model Gateway, Tool Gateway and test CRM. The conversation shows the answer and the result file. Locally the upstream model is `workx dev-model` (scripted) unless `WORKX_ANTHROPIC_API_KEY` is set; see `runtime/README.md`. Approve/reject, stop and retry are wired to the API.
-- **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (text), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (stored with cron and time zone), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
+- **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (any validated type; downloads go through the API), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (stored with cron and time zone), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
 
 ## 3. Not yet served by the API
 

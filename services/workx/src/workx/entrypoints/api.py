@@ -17,6 +17,7 @@ from workx.core.db import Database
 from workx.core.errors import ApiError
 from workx.core.settings import ApiSettings
 from workx.domains.agents import api as agents_api
+from workx.domains.artifacts import api as artifacts_api
 from workx.domains.audit import api as audit_api
 from workx.domains.identity import api as identity_api
 from workx.domains.identity.oidc import OidcProvider
@@ -25,6 +26,7 @@ from workx.domains.resources import stream as stream_api
 from workx.domains.runtime import api as runtime_api
 from workx.domains.tasks import api as tasks_api
 from workx.domains.tenancy import api as tenancy_api
+from workx.platform import storage
 from workx.platform.web import AppState
 
 log = logging.getLogger("workx.api")
@@ -56,6 +58,7 @@ def create_app(
     )
     state = AppState(settings=settings, db=db)
     state.services["oidc"] = OidcProvider(settings.oidc, oidc_http or httpx.Client(follow_redirects=False))
+    state.services["objects"] = storage.from_url(settings.object_store_url)
     app.state.workx = state
 
     @app.middleware("http")
@@ -126,4 +129,5 @@ def domain_routers() -> list[APIRouter]:
         tasks_api.router,
         stream_api.router,
         runtime_api.router,
+        artifacts_api.router,
     ]

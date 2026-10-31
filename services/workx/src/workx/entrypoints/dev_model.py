@@ -9,6 +9,7 @@ It records the API key and model it received so tests can prove the gateway inje
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from collections.abc import Iterator
@@ -52,6 +53,23 @@ SCRIPTS: dict[str, list[dict[str, Any]]] = {
         {"text": "Checking the CRM.", "tool": ("mcp__workx__crm_list_accounts", {"limit": 2})},
         {"text": "Northwind Traders and Contoso Ltd are your top accounts."},
     ],
+    "xlsx": [
+        {
+            "text": "Creating the spreadsheet.",
+            "tool": (
+                "Bash",
+                {
+                    "command": (
+                        'python3 -c "import openpyxl; b = openpyxl.Workbook(); s = b.active; '
+                        "s.append(['Account', 'Revenue']); s.append(['Northwind Traders', 4200000]); "
+                        "s.append(['Contoso Ltd', 3100000]); b.save('{outputs}/top-accounts.xlsx')\""
+                    ),
+                    "description": "Create top-accounts.xlsx",
+                },
+            ),
+        },
+        {"text": "I saved top-accounts.xlsx with your two largest accounts."},
+    ],
     "forbidden_tool": [
         {"tool": ("delete_everything", {})},
         {"text": "That tool is not available."},
@@ -69,6 +87,19 @@ def _scenario(body: dict[str, Any]) -> str:
             if "SCENARIO:" in text:
                 return text.split("SCENARIO:", 1)[1].split()[0]
     return "slice"
+
+
+def _outputs_dir(body: dict[str, Any]) -> str:
+    match = re.search(r"Save files for the user in (\S+?)\.(?:\s|\"|$)", json.dumps(body))
+    return match.group(1) if match else "/mnt/session/outputs"
+
+
+def _fill(value: Any, outputs: str) -> Any:
+    if isinstance(value, str):
+        return value.replace("{outputs}", outputs)
+    if isinstance(value, dict):
+        return {k: _fill(v, outputs) for k, v in value.items()}
+    return value
 
 
 def _step(body: dict[str, Any]) -> int:
@@ -139,6 +170,7 @@ def create_dev_model_app(*, key: str = UPSTREAM_KEY, environment: Environment = 
                 index += 1
             if "tool" in step:
                 name, args = step["tool"]
+                args = _fill(args, _outputs_dir(body))
                 yield _sse(
                     "content_block_start",
                     {

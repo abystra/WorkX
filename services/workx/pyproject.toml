@@ -16,11 +16,18 @@ dependencies = [
   "joserfc>=1.0",
   "python-multipart>=0.0.18",
   "cryptography>=43",
+  # Artifact validation and previews (P-06)
+  "openpyxl>=3.1",
+  "python-docx>=1.1",
+  "python-pptx>=1.0",
+  "pypdf>=5.0",
 ]
 
 [project.optional-dependencies]
 # Production sandbox provider (domains/runtime/sandbox.py: E2BProvider).
 e2b = ["e2b>=2.0"]
+# S3-compatible object storage (platform/storage.py: S3Store).
+s3 = ["boto3>=1.35"]
 
 [project.scripts]
 workx = "workx.entrypoints.cli:main"

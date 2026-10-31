@@ -102,8 +102,16 @@ def mail_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def api_app(test_database: ProvisionedDatabase, db: Database, oidc: TestClient, mail_dir: Path) -> FastAPI:
-    return create_app(make_settings(test_database, mail_url=f"file:{mail_dir}"), db, oidc_http=oidc)
+def objects_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("objects")
+
+
+@pytest.fixture(scope="session")
+def api_app(
+    test_database: ProvisionedDatabase, db: Database, oidc: TestClient, mail_dir: Path, objects_dir: Path
+) -> FastAPI:
+    settings = make_settings(test_database, mail_url=f"file:{mail_dir}", object_store_url=f"file:{objects_dir}")
+    return create_app(settings, db, oidc_http=oidc)
 
 
 @pytest.fixture

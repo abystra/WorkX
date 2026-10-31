@@ -8,6 +8,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -72,8 +73,12 @@ class CapturingProvider(LocalProcessProvider):
 
 
 @pytest.fixture(scope="package")
-def stack(test_database: ProvisionedDatabase, db: Database) -> Iterator[Stack]:
-    base = {"environment": Environment.TEST, "database_url": test_database.app_url}
+def stack(test_database: ProvisionedDatabase, db: Database, objects_dir: Path) -> Iterator[Stack]:
+    base = {
+        "environment": Environment.TEST,
+        "database_url": test_database.app_url,
+        "object_store_url": f"file:{objects_dir}",
+    }
     upstream = Served(create_fake_anthropic())
     crm = Served(create_dev_crm_app(CRM_KEY, environment=Environment.TEST))
     model_gw = Served(

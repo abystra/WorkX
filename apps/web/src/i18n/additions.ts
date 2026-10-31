@@ -80,4 +80,5 @@ export const COPY_ADDITIONS: Record<string, { en: string; 'zh-CN': string }> = {
   'web.task.cancel': { en: 'Stop', 'zh-CN': '停止' },
   'web.task.reason': { en: 'Reason: {reason}', 'zh-CN': '原因：{reason}' },
   'web.task.completed': { en: 'Completed', 'zh-CN': '已完成' },
+  'web.download': { en: 'Download', 'zh-CN': '下载' },
 };

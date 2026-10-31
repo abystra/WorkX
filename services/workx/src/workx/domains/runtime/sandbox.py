@@ -143,7 +143,8 @@ class _LocalSandbox:
 
     def start_runner(self, spec_path: str, env: dict[str, str]) -> RunnerProcess:
         runner_env = {
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            # The runtime's own interpreter first, as in the E2B template (office libraries for Skills).
+            "PATH": f"{Path(sys.executable).parent}:{os.environ.get('PATH', '/usr/bin:/bin')}",
             "HOME": str(Path(self.paths.root) / "home"),
             "PYTHONPATH": str(RUNNER_SRC),
             "LANG": "C.UTF-8",

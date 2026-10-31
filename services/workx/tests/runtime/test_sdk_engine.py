@@ -41,3 +41,26 @@ def test_sdk_engine_runs_through_the_gateways(stack: Stack, user: User) -> None:
         assert seen and all(s["model"] == "test-model-auto" for s in seen)
     finally:
         stack.orchestrator.settings.runner_engine = "messages"
+
+
+@pytest.mark.skipif(not _bundled_cli(), reason="Claude Code CLI not bundled with the SDK")
+def test_sdk_engine_produces_a_downloadable_xlsx(stack: Stack, user: User) -> None:
+    """Part 14 §2 acceptance: the user downloads a valid XLSX produced in outputs/ by the agent."""
+    import io
+
+    from openpyxl import load_workbook
+
+    stack.orchestrator.settings.runner_engine = "claude-agent-sdk"
+    try:
+        task = user.task("SCENARIO:xlsx build the spreadsheet")
+        status = stack.orchestrator.run(start_one(stack, task["id"]))
+        events = user.client.get(f"{user.t}/tasks/{task['id']}/events").json()
+        assert status == "succeeded", [(e["type"], e["payload"]) for e in events][-6:]
+        available = [e["payload"] for e in events if e["type"] == "artifact.available"]
+        assert available and available[0]["name"] == "top-accounts.xlsx" and available[0]["kind"] == "sheet"
+        download = user.client.get(f"{user.t}/files/{available[0]['file_id']}/content")
+        assert download.status_code == 200
+        sheet = load_workbook(io.BytesIO(download.content)).active
+        assert sheet["A2"].value == "Northwind Traders" and sheet["B2"].value == 4200000
+    finally:
+        stack.orchestrator.settings.runner_engine = "messages"

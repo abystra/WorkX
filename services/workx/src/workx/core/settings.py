@@ -23,6 +23,8 @@ class BaseWorkxSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="WORKX_", env_file=".env.local", extra="ignore")
 
     environment: Environment = Environment.DEVELOPMENT
+    # Object storage for file versions: "file:<dir>" (development, single node) or "s3://bucket?endpoint=…".
+    object_store_url: str = "file:.local/objects"
     # HMAC key for derived tokens (CSRF, invitation links, IP hashes). Must be set outside dev/test.
     secret_key: SecretStr = SecretStr(DEV_SECRET_KEY)
     database_url: str = "postgresql+psycopg://workx_app:workx_app_dev@127.0.0.1:54329/workx"

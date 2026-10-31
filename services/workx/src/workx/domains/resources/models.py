@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -76,6 +77,10 @@ class FileVersion(Base):
     sha256: Mapped[bytes | None]
     storage_key: Mapped[str | None]
     text_content: Mapped[str | None]
+    media_type: Mapped[str | None]
+    completeness: Mapped[str] = mapped_column(server_default="complete")
+    source_attempt_id: Mapped[uuid.UUID | None]
+    validation: Mapped[dict[str, Any]] = mapped_column(server_default="{}")
     created_by_membership_id: Mapped[uuid.UUID | None]
     created_at: Mapped[datetime] = mapped_column(server_default="now()")
 

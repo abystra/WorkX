@@ -29,12 +29,19 @@ function FilePreview({ id }: { id: string }) {
 }
 
 function FileFooter({ id }: { id: string }) {
-  const { ws, t } = useWs();
+  const { ws, t, runtime, tenantId } = useWs();
   const toast = useToast();
   const overlay = useOverlay();
   const download = () => {
     const file = ws.library.find(f => f.id === id);
     if (!file) return;
+    if (!runtime.simulated) {
+      // The real file, through the authorized download endpoint (same origin, session cookie).
+      const a = document.createElement('a');
+      a.href = `/api/v1/tenants/${encodeURIComponent(tenantId)}/files/${encodeURIComponent(id)}/content`;
+      a.click();
+      return;
+    }
     const content = `# ${file.name}\n\n${file.content || t('actions.downloadDefault')}\n\n---\n${t('actions.downloadFooter')}`;
     const url = URL.createObjectURL(new Blob([content], { type: 'text/markdown;charset=utf-8' }));
     const a = document.createElement('a');
@@ -47,7 +54,7 @@ function FileFooter({ id }: { id: string }) {
   return (
     <>
       <button className="btn" data-action="close" onClick={overlay.close}>{t('Close')}</button>
-      <button className="btn primary" data-action="download-file" data-id={id} onClick={download}><Icon name="download" size={16} />{t('Download .md')}</button>
+      <button className="btn primary" data-action="download-file" data-id={id} onClick={download}><Icon name="download" size={16} />{t(runtime.simulated ? 'Download .md' : 'web.download')}</button>
     </>
   );
 }

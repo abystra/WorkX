@@ -880,7 +880,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/VersionOut'
+                  $ref: '#/components/schemas/workx__domains__agents__api__VersionOut'
                 title: Response Versions Api V1 Tenants  Tenant Id  Agents  Agent Id  Versions Get
         '422':
           description: Validation Error
@@ -2100,6 +2100,109 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/files/{file_id}/content:
+    get:
+      tags:
+      - files
+      summary: Download a file (current or a given version)
+      operationId: download_api_v1_tenants__tenant_id__files__file_id__content_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Id
+      - name: version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/files/{file_id}/versions:
+    get:
+      tags:
+      - files
+      summary: File versions
+      operationId: versions_api_v1_tenants__tenant_id__files__file_id__versions_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/workx__domains__artifacts__api__VersionOut'
+                title: Response Versions Api V1 Tenants  Tenant Id  Files  File Id  Versions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/files/upload:
+    post:
+      tags:
+      - files
+      summary: Upload a file to the Library (validated by content)
+      operationId: upload_api_v1_tenants__tenant_id__files_upload_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_api_v1_tenants__tenant_id__files_upload_post'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -2521,6 +2624,21 @@ components:
           title: Enabled
       type: object
       title: AutomationPatch
+    Body_upload_api_v1_tenants__tenant_id__files_upload_post:
+      properties:
+        file:
+          type: string
+          contentMediaType: application/octet-stream
+          title: File
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+      type: object
+      required:
+      - file
+      title: Body_upload_api_v1_tenants__tenant_id__files_upload_post
     BudgetIn:
       properties:
         monthly_token_limit:
@@ -3663,7 +3781,7 @@ components:
       - msg
       - type
       title: ValidationError
-    VersionOut:
+    workx__domains__agents__api__VersionOut:
       properties:
         id:
           type: string
@@ -3694,4 +3812,32 @@ components:
       - skills
       - published_at
       - published_by
+      title: VersionOut
+    workx__domains__artifacts__api__VersionOut:
+      properties:
+        version:
+          type: integer
+          title: Version
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        media_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Media Type
+        completeness:
+          type: string
+          title: Completeness
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - version
+      - size_bytes
+      - media_type
+      - completeness
+      - created_at
       title: VersionOut
