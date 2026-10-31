@@ -60,6 +60,7 @@ def test_problem_details_shapes(test_database: ProvisionedDatabase, db: Database
         }
         crash = c.get("/crash")
         assert crash.status_code == 500 and crash.json()["code"] == "INTERNAL"
+        assert crash.json()["request_id"].startswith("req_")
         assert "SHOULDNOTLEAK" not in crash.text
         invalid = c.get("/typed?limit=abc")
         assert invalid.status_code == 400 and invalid.json()["code"] == "VALIDATION_FAILED"

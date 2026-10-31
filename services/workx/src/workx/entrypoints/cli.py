@@ -49,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
     down.add_argument("revision")
     db_sub.add_parser("current")
 
+    dev = sub.add_parser("dev-oidc", help="run the local development OIDC issuer (never in production)")
+    dev.add_argument("--host", default="127.0.0.1")
+    dev.add_argument("--port", type=int, default=8100)
+    dev.add_argument("--issuer", default="")
+
     oa = sub.add_parser("openapi", help="write or check packages/contracts/openapi/workx.v1.yaml")
     mode = oa.add_mutually_exclusive_group(required=True)
     mode.add_argument("--write", action="store_true")
@@ -66,6 +71,18 @@ def main(argv: list[str] | None = None) -> int:
         configure(settings.log_level)
         uvicorn.run(
             "workx.entrypoints.api:create_app", factory=True, host=args.host, port=args.port, reload=args.reload
+        )
+        return 0
+
+    if args.command == "dev-oidc":
+        import uvicorn
+
+        from workx.core.settings import BaseWorkxSettings
+        from workx.entrypoints.dev_oidc import create_dev_oidc_app
+
+        issuer = args.issuer or f"http://{args.host}:{args.port}"
+        uvicorn.run(
+            create_dev_oidc_app(issuer, environment=BaseWorkxSettings().environment), host=args.host, port=args.port
         )
         return 0
 

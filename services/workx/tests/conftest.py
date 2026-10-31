@@ -8,19 +8,26 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from alembic import command
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 from workx.core.db import Database
-from workx.core.settings import ApiSettings, Environment
+from workx.core.settings import ApiSettings, Environment, OidcSettings
 from workx.entrypoints.api import create_app
 from workx.entrypoints.cli import alembic_config
+from workx.entrypoints.dev_oidc import create_dev_oidc_app
+
+ISSUER = "http://testserver"
+API_BASE = "http://api.test"
+WEB_BASE = "http://web.test"
 
 OWNER_URL = os.environ.get(
     "WORKX_TEST_OWNER_URL", "postgresql+psycopg://workx_owner:workx_owner_dev@127.0.0.1:54329/postgres"
@@ -75,13 +82,36 @@ def make_settings(test_database: ProvisionedDatabase, **overrides: object) -> Ap
         "environment": Environment.TEST,
         "database_url": test_database.app_url,
         "session_cookie_secure": False,
+        "api_base_url": API_BASE,
+        "public_base_url": WEB_BASE,
+        "oidc": OidcSettings(issuer=ISSUER, allow_insecure_issuer=True),
     }
     values.update(overrides)
     return ApiSettings(**values)  # type: ignore[arg-type]
 
 
+@pytest.fixture(scope="session")
+def oidc() -> TestClient:
+    """In-process development OIDC issuer; also the API's HTTP client for discovery, JWKS and tokens."""
+    return TestClient(create_dev_oidc_app(ISSUER, environment=Environment.TEST))
+
+
+@pytest.fixture(scope="session")
+def mail_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("mail")
+
+
+@pytest.fixture(scope="session")
+def api_app(test_database: ProvisionedDatabase, db: Database, oidc: TestClient, mail_dir: Path) -> FastAPI:
+    return create_app(make_settings(test_database, mail_url=f"file:{mail_dir}"), db, oidc_http=oidc)
+
+
 @pytest.fixture
-def client(test_database: ProvisionedDatabase, db: Database) -> Iterator[TestClient]:
-    app = create_app(make_settings(test_database), db)
-    with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
+def new_client(api_app: FastAPI) -> Callable[[], TestClient]:
+    """A fresh browser: its own cookie jar against the same API."""
+    return lambda: TestClient(api_app, base_url=API_BASE, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def client(new_client: Callable[[], TestClient]) -> TestClient:
+    return new_client()

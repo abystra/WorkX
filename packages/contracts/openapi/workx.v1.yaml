@@ -2,4 +2,1093 @@ openapi: 3.1.0
 info:
   title: WorkX API
   version: 1.0.0
-paths: {}
+paths:
+  /api/v1/auth/login:
+    get:
+      tags:
+      - identity
+      summary: Start sign-in or sign-up at the identity provider
+      operationId: login_api_v1_auth_login_get
+      parameters:
+      - name: intent
+        in: query
+        required: false
+        schema:
+          type: string
+          pattern: ^(login|signup)$
+          default: login
+          title: Intent
+      - name: return_to
+        in: query
+        required: false
+        schema:
+          type: string
+          default: /
+          title: Return To
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/callback:
+    get:
+      tags:
+      - identity
+      summary: OIDC redirect target
+      operationId: callback_api_v1_auth_callback_get
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+      - name: error
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/auth/logout:
+    post:
+      tags:
+      - identity
+      summary: End this session
+      operationId: logout_api_v1_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutOut'
+  /api/v1/me:
+    get:
+      tags:
+      - identity
+      summary: Current user and CSRF token
+      operationId: me_api_v1_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeOut'
+    patch:
+      tags:
+      - identity
+      summary: Update profile
+      operationId: update_me_api_v1_me_patch
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MePatch'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/me/preferences:
+    put:
+      tags:
+      - identity
+      summary: Remember the last workspace (navigation only)
+      operationId: preferences_api_v1_me_preferences_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreferencesIn'
+        required: true
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/me/sessions:
+    get:
+      tags:
+      - identity
+      summary: Active sign-in sessions
+      operationId: sessions_api_v1_me_sessions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SessionOut'
+                type: array
+                title: Response Sessions Api V1 Me Sessions Get
+  /api/v1/me/sessions/{session_id}:
+    delete:
+      tags:
+      - identity
+      summary: Sign out another session
+      operationId: revoke_api_v1_me_sessions__session_id__delete
+      parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Session Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/me/tenants:
+    get:
+      tags:
+      - tenancy
+      summary: Workspaces the user belongs to
+      operationId: my_tenants_api_v1_me_tenants_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TenantSummary'
+                type: array
+                title: Response My Tenants Api V1 Me Tenants Get
+  /api/v1/tenants:
+    post:
+      tags:
+      - tenancy
+      summary: Create an organization (creator becomes owner)
+      operationId: create_tenant_api_v1_tenants_post
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}:
+    get:
+      tags:
+      - tenancy
+      summary: Workspace detail
+      operationId: get_tenant_api_v1_tenants__tenant_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - tenancy
+      summary: Rename workspace, change settings or own preferences
+      operationId: patch_tenant_api_v1_tenants__tenant_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/members:
+    get:
+      tags:
+      - tenancy
+      summary: Members (active and deactivated)
+      operationId: members_api_v1_tenants__tenant_id__members_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberOut'
+                title: Response Members Api V1 Tenants  Tenant Id  Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/members/{member_id}:
+    patch:
+      tags:
+      - tenancy
+      summary: Change role, status, name or department
+      operationId: patch_member_api_v1_tenants__tenant_id__members__member_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Member Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - tenancy
+      summary: Remove a member, or leave
+      operationId: remove_member_api_v1_tenants__tenant_id__members__member_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: member_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Member Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/ownership-transfer:
+    post:
+      tags:
+      - tenancy
+      summary: Transfer organization ownership
+      operationId: transfer_api_v1_tenants__tenant_id__ownership_transfer_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferIn'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/departments:
+    get:
+      tags:
+      - tenancy
+      summary: Departments (organization attribute)
+      operationId: departments_api_v1_tenants__tenant_id__departments_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DepartmentOut'
+                title: Response Departments Api V1 Tenants  Tenant Id  Departments Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - tenancy
+      summary: Create a department
+      operationId: create_department_api_v1_tenants__tenant_id__departments_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepartmentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/invitations:
+    get:
+      tags:
+      - tenancy
+      summary: Invitations (owners and admins)
+      operationId: list_invitations_api_v1_tenants__tenant_id__invitations_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvitationOut'
+                title: Response List Invitations Api V1 Tenants  Tenant Id  Invitations Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - tenancy
+      summary: Invite people by email (all or nothing)
+      operationId: invite_api_v1_tenants__tenant_id__invitations_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/invitations/{invitation_id}/cancel:
+    post:
+      tags:
+      - tenancy
+      summary: Cancel an invitation
+      operationId: cancel_invitation_api_v1_tenants__tenant_id__invitations__invitation_id__cancel_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Invitation Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/invitations/preview:
+    post:
+      tags:
+      - tenancy
+      summary: What an invitation link is for (the link itself is the credential)
+      operationId: preview_api_v1_invitations_preview_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/invitations/accept:
+    post:
+      tags:
+      - tenancy
+      summary: Accept an invitation as the signed-in user
+      operationId: accept_api_v1_invitations_accept_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AcceptOut:
+      properties:
+        tenant_id:
+          type: string
+          title: Tenant Id
+        membership_id:
+          type: string
+          title: Membership Id
+      type: object
+      required:
+      - tenant_id
+      - membership_id
+      title: AcceptOut
+    DepartmentIn:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        parent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent Id
+      type: object
+      required:
+      - name
+      title: DepartmentIn
+    DepartmentOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        parent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parent Id
+      type: object
+      required:
+      - id
+      - name
+      - parent_id
+      title: DepartmentOut
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InvitationOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - role
+      - status
+      - expires_at
+      - created_at
+      title: InvitationOut
+    InvitationPreview:
+      properties:
+        tenant_name:
+          type: string
+          title: Tenant Name
+        role:
+          type: string
+          title: Role
+        inviter_name:
+          type: string
+          title: Inviter Name
+        status:
+          type: string
+          title: Status
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+      type: object
+      required:
+      - tenant_name
+      - role
+      - inviter_name
+      - status
+      - expires_at
+      title: InvitationPreview
+    InviteIn:
+      properties:
+        emails:
+          anyOf:
+          - type: string
+          - items:
+              type: string
+            type: array
+          title: Emails
+        role:
+          type: string
+          enum:
+          - admin
+          - member
+          title: Role
+          default: member
+      type: object
+      required:
+      - emails
+      title: InviteIn
+    LogoutOut:
+      properties:
+        end_session_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: End Session Url
+      type: object
+      required:
+      - end_session_url
+      title: LogoutOut
+    MeOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        email:
+          type: string
+          title: Email
+        name:
+          type: string
+          title: Name
+        locale:
+          type: string
+          title: Locale
+        notifications:
+          type: boolean
+          title: Notifications
+        last_tenant_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last Tenant Id
+        csrf_token:
+          type: string
+          title: Csrf Token
+      type: object
+      required:
+      - id
+      - email
+      - name
+      - locale
+      - notifications
+      - last_tenant_id
+      - csrf_token
+      title: MeOut
+    MePatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        locale:
+          anyOf:
+          - type: string
+            pattern: ^(en|zh-CN)$
+          - type: 'null'
+          title: Locale
+        notifications:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Notifications
+      type: object
+      title: MePatch
+    MemberOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        user_id:
+          type: string
+          title: User Id
+        name:
+          type: string
+          title: Name
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+        department_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Department Id
+        joined_at:
+          type: string
+          format: date-time
+          title: Joined At
+      type: object
+      required:
+      - id
+      - user_id
+      - name
+      - email
+      - role
+      - status
+      - department_id
+      - joined_at
+      title: MemberOut
+    MemberPatch:
+      properties:
+        role:
+          anyOf:
+          - type: string
+            enum:
+            - owner
+            - admin
+            - member
+          - type: 'null'
+          title: Role
+        status:
+          anyOf:
+          - type: string
+            enum:
+            - active
+            - deactivated
+          - type: 'null'
+          title: Status
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        department_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Department Id
+      type: object
+      title: MemberPatch
+    PreferencesIn:
+      properties:
+        last_tenant_id:
+          type: string
+          title: Last Tenant Id
+      type: object
+      required:
+      - last_tenant_id
+      title: PreferencesIn
+    SessionOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        current:
+          type: boolean
+          title: Current
+        created_at:
+          type: string
+          title: Created At
+        last_seen_at:
+          type: string
+          title: Last Seen At
+        user_agent:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Agent
+      type: object
+      required:
+      - id
+      - current
+      - created_at
+      - last_seen_at
+      - user_agent
+      title: SessionOut
+    TenantCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          title: Name
+      type: object
+      required:
+      - name
+      title: TenantCreate
+    TenantOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        type:
+          type: string
+          enum:
+          - personal
+          - organization
+          title: Type
+        name:
+          type: string
+          title: Name
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+        plan_id:
+          type: string
+          title: Plan Id
+        member_count:
+          type: integer
+          title: Member Count
+        settings:
+          additionalProperties: true
+          type: object
+          title: Settings
+        preferences:
+          additionalProperties: true
+          type: object
+          title: Preferences
+      type: object
+      required:
+      - id
+      - slug
+      - type
+      - name
+      - role
+      - status
+      - plan_id
+      - member_count
+      - settings
+      - preferences
+      title: TenantOut
+    TenantPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Name
+        settings:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Settings
+        preferences:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Preferences
+      type: object
+      title: TenantPatch
+    TenantSummary:
+      properties:
+        id:
+          type: string
+          title: Id
+        slug:
+          type: string
+          title: Slug
+        type:
+          type: string
+          enum:
+          - personal
+          - organization
+          title: Type
+        name:
+          type: string
+          title: Name
+        role:
+          type: string
+          title: Role
+        status:
+          type: string
+          title: Status
+      type: object
+      required:
+      - id
+      - slug
+      - type
+      - name
+      - role
+      - status
+      title: TenantSummary
+    TokenIn:
+      properties:
+        token:
+          type: string
+          maxLength: 200
+          minLength: 10
+          title: Token
+      type: object
+      required:
+      - token
+      title: TokenIn
+    TransferIn:
+      properties:
+        membership_id:
+          type: string
+          title: Membership Id
+      type: object
+      required:
+      - membership_id
+      title: TransferIn
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

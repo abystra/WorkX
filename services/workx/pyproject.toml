@@ -13,6 +13,9 @@ dependencies = [
   "alembic>=1.14",
   "httpx>=0.28",
   "pyyaml>=6.0",
+  "joserfc>=1.0",
+  "python-multipart>=0.0.18",
+  "cryptography>=43",
 ]
 
 [project.scripts]

@@ -50,14 +50,15 @@ explicit_package_bases = true
 exclude = ["services/workx/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["authlib.*", "importlinter.*"]
+module = ["importlinter.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["services/workx/tests"]
 timeout = 120
 addopts = "-ra"
-filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning"]
+# TestClient doubles as the OIDC HTTP client in tests; its httpx deprecation notices are harness-only.
+filterwarnings = ["ignore::starlette.exceptions.StarletteDeprecationWarning"]
 
 # Dependency direction (Part 12 §3). Checked in CI with `uv run lint-imports`.
 [tool.importlinter]

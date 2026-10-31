@@ -16,16 +16,27 @@ class Environment(StrEnum):
     PRODUCTION = "production"
 
 
+DEV_SECRET_KEY = "workx-dev-secret-key-not-for-production"  # noqa: S105 (refused outside dev/test)
+
+
 class BaseWorkxSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="WORKX_", env_file=".env.local", extra="ignore")
 
     environment: Environment = Environment.DEVELOPMENT
+    # HMAC key for derived tokens (CSRF, invitation links, IP hashes). Must be set outside dev/test.
+    secret_key: SecretStr = SecretStr(DEV_SECRET_KEY)
     database_url: str = "postgresql+psycopg://workx_app:workx_app_dev@127.0.0.1:54329/workx"
     log_level: str = "INFO"
 
     @property
     def is_production(self) -> bool:
         return self.environment in (Environment.STAGING, Environment.PRODUCTION)
+
+    @model_validator(mode="after")
+    def _guard_secret(self) -> BaseWorkxSettings:
+        if self.is_production and (self.secret_key.get_secret_value() == DEV_SECRET_KEY or len(self.secret_key) < 32):
+            raise ValueError("WORKX_SECRET_KEY must be set to at least 32 random characters in staging or production")
+        return self
 
 
 class MigrationSettings(BaseWorkxSettings):
@@ -50,6 +61,12 @@ class ApiSettings(BaseWorkxSettings):
     api_base_url: str = "http://127.0.0.1:8000"
     session_cookie_name: str = "workx_session"
     session_cookie_secure: bool = True
+    invitation_ttl_days: int = 7
+    mail_from: str = "WorkX <no-reply@workx.example>"
+    # "file:<dir>" writes .eml files (development, tests); "smtp://user:pass@host:port" sends; "log" logs only.
+    mail_url: str = "log"
+    # Recent sign-in required for sensitive actions such as ownership transfer (Part 10 §3).
+    reauth_window_minutes: int = 10
     session_sliding_days: int = 7
     session_absolute_days: int = 30
     cors_origins: list[str] = Field(default_factory=list)
