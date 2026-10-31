@@ -32,9 +32,21 @@ describe('HTTP mapping (view models ↔ control-plane API)', () => {
   });
 
   it('serves later-phase endpoints locally instead of calling missing routes', () => {
-    expect(plan('GET', '/tenants/ten_1/connections', undefined).local).toEqual([]);
+    expect(plan('GET', '/tenants/ten_1/channel-runs', undefined).local).toEqual([]);
     expect(plan('POST', '/tenants/ten_1/channel-bindings', {}).local).toBeInstanceOf(Error);
     expect(plan('GET', '/tenants/ten_1/artifacts', undefined).path).toBe('/tenants/ten_1/files?include_content=true');
+  });
+
+  it('maps connections, their secrets and bound workmates', () => {
+    const create = plan('POST', '/tenants/ten_1/connections', { connectorId: 'crm', name: 'CRM', ownerScope: 'space', secret: 'k' });
+    expect(create.body).toEqual({ connector_id: 'crm', name: 'CRM', scope: 'tenant', secret: 'k' });
+    expect(plan('PATCH', '/tenants/ten_1/connections/con_1', { enabled: false }).body).toEqual({ status: 'suspended' });
+    const bind = plan('PUT', '/tenants/ten_1/connections/con_1/usage-policy', { agentIds: ['agt_1'], tools: ['crm_list_accounts'] });
+    expect(bind.body).toEqual([{ principal_type: 'agent', principal_ref: 'agt_1', allowed_tools: ['crm_list_accounts'] }]);
+    const [view] = plan('GET', '/tenants/ten_1/connections', undefined).out([
+      { id: 'con_1', name: 'CRM', connector_id: 'crm', connector_name: 'CRM', auth: 'api_key', scope: 'tenant', owner_id: 'mem_1', status: 'suspended', agent_ids: ['agt_1'] },
+    ]) as Record<string, unknown>[];
+    expect(view).toMatchObject({ provider: 'api', authMode: 'static', ownerScope: 'space', enabled: false, agentIds: ['agt_1'], connectorName: 'CRM' });
   });
 
   it('maps a task response into the view model', () => {

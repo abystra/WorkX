@@ -1,6 +1,11 @@
 // Copy for states and screens the prototype never needed (docs/architecture/15-UI-FIDELITY.md §4.3).
 // Keys use the `web.` prefix so they never collide with converted prototype keys.
 export const COPY_ADDITIONS: Record<string, { en: string; 'zh-CN': string }> = {
+  'web.conn.formHint': { en: 'Choose a connector installed in this workspace. Keys are sent once to the credential service, stored encrypted and never shown again.', 'zh-CN': '选择当前空间已安装的连接器。密钥仅提交一次至凭据服务，加密保存，之后不再显示。' },
+  'web.conn.apiKey': { en: 'API key', 'zh-CN': 'API 密钥' },
+  'web.conn.active': { en: 'Connected', 'zh-CN': '已连接' },
+  'web.conn.bindingRule': { en: 'Shared connections are used only by the workmates bound here. With none bound, no task can use it.', 'zh-CN': '共享连接仅供此处关联的伙伴使用；未关联伙伴时，任何任务都无法使用。' },
+  'web.conn.memberRule': { en: 'Personal connection: used only in tasks you start.', 'zh-CN': '个人连接：仅在你发起的任务中使用。' },
   'web.loading': { en: 'Loading…', 'zh-CN': '正在加载…' },
   'web.loadErrorTitle': { en: 'WorkX could not load this page', 'zh-CN': 'WorkX 暂时无法加载此页面' },
   'web.loadErrorBody': { en: 'Check your connection and try again. If this keeps happening, the service may be unavailable.', 'zh-CN': '请检查网络后重试；如果持续出现，可能是服务暂时不可用。' },

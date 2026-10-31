@@ -83,6 +83,22 @@ It renders the real messages with the prototype classes (`chat-user`, `assistant
 
 **For review:** the tool names shown in steps come straight from the gateway, such as "crm list accounts". The product might want friendlier labels per connector.
 
+## 2c. Add connection on the real API (P-07)
+
+Source: `src/features/settings/AdminDialogs.tsx` (`RealConnectionForm`), copy keys `web.conn.*`. The development adapter keeps the prototype's metadata-only form.
+
+Same dialog, same fields and order, with these differences:
+
+- **Provider** lists the connectors in the workspace catalog (for example "CRM (test API)") instead of the prototype's fixed list.
+- **Auth method** is read-only: the connector decides it.
+- **API key** (password field) appears below the two selects for API-key connectors. The prototype's hint "Do not enter real secrets" is replaced by `web.conn.formHint`.
+- **Shared connection** is offered only for app-identity connectors (member-identity ones such as Feishu Docs are per member).
+- A note under the workmate list explains that shared connections are used only by the bound workmates.
+
+The connection card shows "Connected" for active connections and a rule line (`web.conn.bindingRule` or `web.conn.memberRule`) instead of "Association is a prototype record".
+
+**For review:** whether the auth method should be shown at all when it is fixed by the connector.
+
 ## 3. Changed wording (approved, decision 31 / Q-17, D-02)
 
 Source: `src/i18n/overrides.ts`. Same position, similar length. Prototype-only claims (browser storage, "this prototype") are replaced:

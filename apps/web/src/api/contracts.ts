@@ -164,6 +164,21 @@ export interface Connection {
   status: 'no_auth' | 'needs_auth' | 'active';
   enabled: boolean;
   usageClass: 'tool';
+  /** Real API only: catalog connector behind this connection, and its display name. */
+  connectorId?: string;
+  connectorName?: string;
+}
+
+/** Real API only: a catalog connector and its installation in this workspace (Part 6 §2). */
+export interface Connector {
+  id: string;
+  name: string;
+  cls: string;
+  auth: 'none' | 'api_key' | 'oauth';
+  identity: 'user' | 'app';
+  tools: string[];
+  installed: boolean;
+  enabled: boolean;
 }
 
 export interface ActivityEvent {

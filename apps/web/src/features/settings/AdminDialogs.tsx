@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '@/api/client';
+import type { Connector } from '@/api/contracts';
+import { tenantKey } from '@/api/hooks';
 import { useWs } from '@/app/workspace';
 import { SpaceMark } from '@/features/shell/menus';
 import { Avatar, Icon } from '@/ui/icons';
@@ -117,10 +120,11 @@ SharingDialog.Footer = function Footer({ collection, id }: { collection: Collect
   return <SaveFooter action="space-save-sharing" onSave={() => void save()} extra={{ 'data-id': id, 'data-collection': collection }} />;
 };
 
-/** Register a connection (metadata only; no secrets are collected here). */
+/** Register a connection. Development adapter: metadata only (prototype). Real API: RealConnectionForm. */
 export function AddConnectionDialog() {
   const ctx = useWs();
   const { t, ws } = ctx;
+  if (!ctx.runtime.simulated) return <RealConnectionForm />;
   return (
     <>
       <p className="ws-body-copy">{t('spaces.connectionFormHint')}</p>
@@ -147,10 +151,77 @@ export function AddConnectionDialog() {
   );
 }
 
+/** Usable connectors: installed and enabled, or (for managers) installable on save. Class 0 needs no connection. */
+function useConnectors() {
+  const ctx = useWs();
+  const query = useQuery({ queryKey: [...tenantKey(ctx.tenantId), 'connectors'], queryFn: () => api.connectors(ctx.tenantId) });
+  const canInstall = ctx.canManage || ctx.current.type === 'personal';
+  return (query.data || []).filter(c => c.auth !== 'none' && ((c.installed && c.enabled) || canInstall));
+}
+
+/**
+ * Real API (Part 6): the connector comes from the workspace catalog and decides the auth method; an API key is
+ * sent once to the credential broker and never shown again. OAuth connectors are created as "Authorization required".
+ */
+function RealConnectionForm() {
+  const ctx = useWs();
+  const { t, ws } = ctx;
+  const connectors = useConnectors();
+  const [connectorId, setConnectorId] = useState('');
+  const connector: Connector | undefined = connectors.find(c => c.id === connectorId) || connectors[0];
+  return (
+    <>
+      <p className="ws-body-copy">{t('web.conn.formHint')}</p>
+      <div className="ws-dialog-space"><SpaceMark space={ctx.current} /><strong>{ctx.spaceName()}</strong></div>
+      <form id="space-connection-form" data-tenant={ctx.tenantId} onSubmit={e => e.preventDefault()}>
+        <Field label={t('spaces.connectionName')}><input name="name" required maxLength={80} autoComplete="off" /></Field>
+        <div className="ws-form-grid">
+          <Field label={t('spaces.provider')}>
+            <select name="connectorId" value={connector?.id || ''} onChange={e => setConnectorId(e.target.value)}>
+              {connectors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label={t('spaces.authMode')}>
+            <input readOnly value={connector ? t('spaces.auth.' + (connector.auth === 'api_key' ? 'static' : connector.auth)) : ''} />
+          </Field>
+        </div>
+        {connector?.auth === 'api_key'
+          ? <Field label={t('web.conn.apiKey')}><input name="secret" type="password" required maxLength={8192} autoComplete="off" spellCheck={false} /></Field>
+          : null}
+        <Field label={t('spaces.connectionOwnership')}>
+          <select name="ownerScope"><option value="member">{t('spaces.memberConnection')}</option>{ctx.canManage && connector?.identity !== 'user' ? <option value="space">{t('spaces.sharedConnection')}</option> : null}</select>
+        </Field>
+        <fieldset className="wx-team-fieldset">
+          <legend>{t('spaces.boundAgents')}</legend>
+          {ws.agents.map(a => <label className="wx-team-choice" key={a.id}><input type="checkbox" name="agents" value={a.id} /><Avatar index={a.avatar} size={22} />{a.name}</label>)}
+        </fieldset>
+        <p className="ws-mini-note">{t('web.conn.bindingRule')}</p>
+      </form>
+    </>
+  );
+}
+
 AddConnectionDialog.Footer = function Footer() {
   const ctx = useWs();
   const overlay = useOverlay();
+  const connectors = useConnectors();
+  const saveReal = async () => {
+    const values = readForm('space-connection-form', ctx.tenantId);
+    if (!values) return;
+    const connector = connectors.find(c => c.id === values.get('connectorId'));
+    if (!connector) return;
+    const shared = values.get('ownerScope') === 'space';
+    const agentIds = values.getAll('agents').map(String);
+    const result = await ctx.run(async () => {
+      if (!connector.installed || !connector.enabled) await api.installConnector(ctx.tenantId, connector.id);
+      const created = await api.createConnection(ctx.tenantId, { connectorId: connector.id, name: values.get('name'), ownerScope: values.get('ownerScope'), secret: values.get('secret') || undefined });
+      if (shared && agentIds.length) await api.bindConnection(ctx.tenantId, created.id, agentIds, connector.tools);
+      return created;
+    }, 'spaces.connectionRegistered');
+    if (result) overlay.close();
+  };
   const save = async () => {
+    if (!ctx.runtime.simulated) return saveReal();
     const values = readForm('space-connection-form', ctx.tenantId);
     if (!values) return;
     const body = { name: values.get('name'), provider: values.get('provider'), authMode: values.get('authMode'), ownerScope: values.get('ownerScope'), agentIds: values.getAll('agents') };

@@ -153,6 +153,13 @@ def test_usage_policy_decides_who_gets_tools(
         .status_code
         == 400
     )
+    # Workmate rules come back with public ids and show as the connection's bound workmates.
+    agent = w["owner"].get(f"{w['base']}/agents").json()[0]["id"]
+    rule = {"principal_type": "agent", "principal_ref": agent, "allowed_tools": ["crm_list_accounts"]}
+    assert w["owner"].put(url, json=[rule]).status_code == 200
+    assert w["owner"].get(url).json() == [rule]
+    [listed] = w["owner"].get(f"{w['base']}/connections").json()
+    assert listed["agent_ids"] == [agent]
 
 
 def test_rotation_and_shredding(

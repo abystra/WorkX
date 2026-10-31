@@ -1,5 +1,5 @@
 import type {
-  ModelOption, ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, EcosystemBinding, Invitation, Me,
+  ModelOption, ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, Connector, EcosystemBinding, Invitation, Me,
   ApprovalView, KnowledgeSource, Member, Project, ScenarioDraft, Task, TaskDetail, TaskEventView, TenantDetail, TenantSummary,
 } from './contracts';
 import type { Transport } from './transport';
@@ -72,6 +72,10 @@ export const api = {
   connections: (tenantId: string) => req<Connection[]>('GET', `${t(tenantId)}/connections`),
   createConnection: (tenantId: string, body: Record<string, unknown>) => req<Connection>('POST', `${t(tenantId)}/connections`, body),
   updateConnection: (tenantId: string, id: string, patch: Record<string, unknown>) => req<Connection>('PATCH', `${t(tenantId)}/connections/${encodeURIComponent(id)}`, patch),
+  /** Real API only (P-07): connector catalog, installation, and which workmates may use a shared connection. */
+  connectors: (tenantId: string) => req<Connector[]>('GET', `${t(tenantId)}/connectors`),
+  installConnector: (tenantId: string, connectorId: string) => req<Connector>('PUT', `${t(tenantId)}/connectors/${encodeURIComponent(connectorId)}/installation`, { enabled: true }),
+  bindConnection: (tenantId: string, id: string, agentIds: string[], tools: string[]) => req<unknown>('PUT', `${t(tenantId)}/connections/${encodeURIComponent(id)}/usage-policy`, { agentIds, tools }),
   setSharing: (tenantId: string, collection: string, id: string, body: Record<string, unknown>) => req<unknown>('PUT', `${t(tenantId)}/resources/${collection}/${encodeURIComponent(id)}/sharing`, body),
   activity: (tenantId: string) => req<ActivityEvent[]>('GET', `${t(tenantId)}/activity`),
   departments: (tenantId: string) => req<{ id: string; name: string; parentId?: string }[]>('GET', `${t(tenantId)}/departments`),

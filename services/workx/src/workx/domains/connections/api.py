@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, or_, select
+from sqlalchemy.orm import Session
 
 from workx.core import ids
 from workx.core.errors import conflict, forbidden, not_found, validation
@@ -133,6 +135,8 @@ def install(
 class ConnectionOut(BaseModel):
     id: str
     connector_id: str
+    connector_name: str
+    auth: str
     name: str
     scope: Literal["member", "tenant"]
     owner_id: str
@@ -142,12 +146,36 @@ class ConnectionOut(BaseModel):
     last_used_at: datetime | None
     created_at: datetime
     mine: bool
+    # Workmates named in the usage policy (shared connections); the UI shows them as "bound workmates".
+    agent_ids: list[str] = Field(default_factory=list)
 
 
-def _out(c: Connection, actor: Actor) -> ConnectionOut:
+def _encode_ref(principal_type: str, ref: str) -> str:
+    if principal_type in ("membership", "project", "agent"):
+        return ids.encode(principal_type, uuid.UUID(ref))
+    return ref
+
+
+def _agent_ids(session: Session, connection_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[str]]:
+    out: dict[uuid.UUID, list[str]] = {}
+    if not connection_ids:
+        return out
+    for row in session.execute(
+        select(ConnectionUsagePolicy).where(
+            ConnectionUsagePolicy.connection_id.in_(connection_ids), ConnectionUsagePolicy.principal_type == "agent"
+        )
+    ).scalars():
+        out.setdefault(row.connection_id, []).append(_encode_ref("agent", row.principal_ref))
+    return out
+
+
+def _out(c: Connection, actor: Actor, agent_ids: list[str] | None = None) -> ConnectionOut:
+    connector = catalog.CONNECTORS[c.connector_id]
     return ConnectionOut(
         id=ids.encode("connection", c.id),
         connector_id=c.connector_id,
+        connector_name=connector.name,
+        auth=connector.auth,
         name=c.name,
         scope=c.owner_scope,
         owner_id=ids.encode("membership", c.owner_membership_id),
@@ -157,7 +185,12 @@ def _out(c: Connection, actor: Actor) -> ConnectionOut:
         last_used_at=c.last_used_at,
         created_at=c.created_at,
         mine=c.owner_membership_id == actor.membership.id,
+        agent_ids=agent_ids or [],
     )
+
+
+def _one(session: Session, c: Connection, actor: Actor) -> ConnectionOut:
+    return _out(c, actor, _agent_ids(session, [c.id]).get(c.id))
 
 
 @router.get(
@@ -170,7 +203,9 @@ def list_connections(tenant_id: str, principal: Authenticated, state: State) -> 
             query = query.where(
                 or_(Connection.owner_membership_id == actor.membership.id, Connection.owner_scope == "tenant")
             )
-        return [_out(c, actor) for c in session.execute(query.order_by(Connection.created_at)).scalars()]
+        rows = list(session.execute(query.order_by(Connection.created_at)).scalars())
+        agents = _agent_ids(session, [c.id for c in rows])
+        return [_out(c, actor, agents.get(c.id)) for c in rows]
 
 
 class ConnectionIn(BaseModel):
@@ -233,7 +268,7 @@ def create_connection(tenant_id: str, body: ConnectionIn, principal: Authenticat
             tenant_id=tid, connection_id=connection_id, actor_membership_id=membership_id, value=body.secret
         )
     with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid) as (session, actor):
-        return _out(_load(session, actor, ids.encode("connection", connection_id)), actor)
+        return _one(session, _load(session, actor, ids.encode("connection", connection_id)), actor)
 
 
 class SecretIn(BaseModel):
@@ -255,7 +290,7 @@ def rotate(tenant_id: str, connection_id: str, body: SecretIn, principal: Authen
         value=body.secret,
     )
     with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid) as (session, actor):
-        return _out(_load(session, actor, connection_id), actor)
+        return _one(session, _load(session, actor, connection_id), actor)
 
 
 class ConnectionPatch(BaseModel):
@@ -287,7 +322,7 @@ def patch_connection(
             )
         session.flush()
         events.publish(session, actor.tenant.id, "connection.updated", {"connection_id": connection_id})
-        return _out(connection, actor)
+        return _one(session, connection, actor)
 
 
 @router.delete(
@@ -326,7 +361,9 @@ def get_policy(tenant_id: str, connection_id: str, principal: Authenticated, sta
         ).scalars()
         return [
             PolicyRule(
-                principal_type=r.principal_type, principal_ref=r.principal_ref, allowed_tools=list(r.allowed_tools)
+                principal_type=r.principal_type,
+                principal_ref=_encode_ref(r.principal_type, r.principal_ref),
+                allowed_tools=list(r.allowed_tools),
             )
             for r in rows
         ]

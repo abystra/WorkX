@@ -241,15 +241,15 @@ function Connections() {
           <article className="ws-connection" key={c.id}>
             <div className="ws-connection-top">
               <span className="ws-mark"><Icon name={c.provider === 'skill' ? 'code' : 'globe'} size={20} /></span>
-              <div><strong>{c.name}</strong><small>{providerName(c.provider)} · {t('spaces.auth.' + c.authMode)}</small></div>
-              <span className={`ws-pill ${c.enabled ? '' : 'is-muted'}`}>{t(!c.enabled ? 'spaces.disabled' : c.authMode === 'none' ? 'spaces.noAuth' : 'spaces.needsAuth')}</span>
+              <div><strong>{c.name}</strong><small>{c.connectorName || providerName(c.provider)} · {t('spaces.auth.' + c.authMode)}</small></div>
+              <span className={`ws-pill ${c.enabled ? '' : 'is-muted'}`}>{t(!c.enabled ? 'spaces.disabled' : !ctx.runtime.simulated && c.status === 'active' ? 'web.conn.active' : c.authMode === 'none' ? 'spaces.noAuth' : 'spaces.needsAuth')}</span>
             </div>
             <div className="ws-connection-meta">
               <span>{ctx.spaceName()} · {t(c.ownerScope === 'space' ? 'spaces.sharedConnection' : 'spaces.memberConnection')}</span>
               <SpaceButton action="space-toggle-connection" label={t(c.enabled ? 'spaces.disable' : 'spaces.enable')} data-id={c.id} onClick={() => void ctx.run(() => api.updateConnection(ctx.tenantId, c.id, { enabled: !c.enabled }), 'spaces.saved')} />
             </div>
             {c.agentIds.length ? <div className="ws-bound-agents">{t('spaces.boundAgents')}：{c.agentIds.map(id => ws.agents.find(a => a.id === id)?.name || id).join('、')}</div> : null}
-            <p className="ws-mini-note">{t('spaces.bindingHint')}</p>
+            <p className="ws-mini-note">{t(ctx.runtime.simulated ? 'spaces.bindingHint' : c.ownerScope === 'space' ? 'web.conn.bindingRule' : 'web.conn.memberRule')}</p>
           </article>
         )) : <WsEmpty text={t('spaces.noConnections')} icon="globe" />}
       </Section>

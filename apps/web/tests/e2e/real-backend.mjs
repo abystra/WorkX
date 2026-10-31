@@ -1,7 +1,8 @@
 // Browser journeys against the real API (not the development adapter). Start the stack first:
 //   scripts/dev/stack.sh start        (dev OIDC issuer, API, worker, web on :5174 in integration mode)
 //   node apps/web/tests/e2e/real-backend.mjs [--base http://127.0.0.1:5174] [--mail .local/run/mail]
-// Covers J1 (sign-in through OIDC, personal workspace), J2 (create organization, invite by email, accept
+// Covers J1 (sign-in through OIDC, personal workspace), P-07 (connect the test CRM with an API key), a real task
+// run, J2 (create organization, invite by email, accept
 // from the emailed link as the invitee) and J3 (switch workspaces; content stays per workspace).
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -43,7 +44,22 @@ await alex.page.waitForSelector('.app-layout', { timeout: 15000 });
 expect('J1 sign-in lands in the app', /\/t\/ten_[^/]+\/home$/.test(alex.page.url()), alex.page.url());
 expect('J1 starter workmate shown on Home', (await alex.page.textContent('body')).includes('My Workmate'));
 
-// Start a task on the real API (execution arrives in P-05: it stays queued).
+// P-07: connect the test CRM with its API key (sent once to the broker). Without it the task has no CRM tools.
+const personalId = /\/t\/(ten_[^/]+)\//.exec(alex.page.url())?.[1];
+await alex.page.goto(`${base}/t/${personalId}/team/connections`);
+await alex.page.click('[data-action="space-add-connection"]');
+await alex.page.waitForSelector('select[name="connectorId"] option[value="crm"]', { state: 'attached' });
+await alex.page.fill('#space-connection-form input[name="name"]', 'Test CRM');
+await alex.page.selectOption('select[name="connectorId"]', 'crm');
+await alex.page.fill('#space-connection-form input[name="secret"]', process.env.WORKX_DEV_CRM_KEY || 'dev-crm-key');
+await alex.page.click('[data-action="space-save-connection"]');
+await alex.page.waitForSelector('.ws-connection', { timeout: 10000 });
+const card = await alex.page.textContent('.ws-connection');
+expect('P-07 CRM connection created and shown as connected', card.includes('Test CRM') && card.includes('Connected'), card);
+expect('P-07 the API key is not shown anywhere', !(await alex.page.content()).includes('dev-crm-key'));
+
+// Start a task on the real API: runner → model gateway → tool gateway (CRM through the connection).
+await alex.page.goto(`${base}/t/${personalId}/home`);
 await alex.page.click('[data-action="nav"][data-page="new"]');
 await alex.page.fill('#task-prompt', 'Summarize this week in three bullets');
 await alex.page.click('[data-action="send-task"]');

@@ -2998,6 +2998,12 @@ components:
         connector_id:
           type: string
           title: Connector Id
+        connector_name:
+          type: string
+          title: Connector Name
+        auth:
+          type: string
+          title: Auth
         name:
           type: string
           title: Name
@@ -3036,10 +3042,17 @@ components:
         mine:
           type: boolean
           title: Mine
+        agent_ids:
+          items:
+            type: string
+          type: array
+          title: Agent Ids
       type: object
       required:
       - id
       - connector_id
+      - connector_name
+      - auth
       - name
       - scope
       - owner_id

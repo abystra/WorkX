@@ -125,6 +125,17 @@ export const mapTaskDetail = (t: any) => ({
   messages: (t.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content, fileId: m.file_id || undefined, createdAt: m.created_at })),
 });
 
+/** Catalog connector → the prototype's provider and auth-mode vocabulary (the card's icon and subtitle). */
+const PROVIDER: Record<string, string> = { 'feishu-docs': 'feishu', notes: 'mcp' };
+const AUTH_MODE: Record<string, string> = { api_key: 'static', oauth: 'oauth', none: 'none' };
+
+export const mapConnection = (c: any) => ({
+  id: c.id, name: c.name, connectorId: c.connector_id, connectorName: c.connector_name,
+  provider: PROVIDER[c.connector_id] || 'api', authMode: AUTH_MODE[c.auth] || 'static',
+  ownerScope: c.scope === 'tenant' ? 'space' : 'member', ownerId: c.owner_id, agentIds: c.agent_ids || [],
+  status: c.status === 'active' ? 'active' : 'needs_auth', enabled: c.status !== 'suspended', usageClass: 'tool',
+});
+
 export const mapApproval = (a: any) => ({ id: a.id, tool: a.tool, summary: a.summary, status: a.status, expiresAt: a.expires_at });
 
 export const mapProject = (p: any) => ({
@@ -193,7 +204,7 @@ function agentBody(b: any) {
 }
 
 const COLLECTIONS: Record<string, string> = { artifacts: 'files', library: 'files' };
-const LATER = /^\/tenants\/[^/]+\/(connections|channel-bindings|channel-runs|channel-messages|knowledge-sources)(\/|$)/;
+const LATER = /^\/tenants\/[^/]+\/(channel-bindings|channel-runs|channel-messages|knowledge-sources)(\/|$)/;
 
 /** Plans one UI call. Unknown paths pass through unchanged (snake_case bodies are the caller's responsibility). */
 export function plan(method: Method, path: string, body: any): Planned {
@@ -201,7 +212,7 @@ export function plan(method: Method, path: string, body: any): Planned {
   let match: RegExpExecArray | null;
 
   if (LATER.test(path)) {
-    // Connections (P-07), knowledge (P-08) and channels (P-09) are not served by the API yet.
+    // Knowledge (P-08) and channels (P-09) are not served by the API yet.
     return method === 'GET' ? { method, path, out: identity, local: [] } : { method, path, out: identity, local: new Error('NOT_AVAILABLE') };
   }
   if (path === '/me') {
@@ -274,6 +285,26 @@ export function plan(method: Method, path: string, body: any): Planned {
     ? { method, path, out: (rows: any[]) => rows.map(mapScenario) }
     : { method, path, body, out: mapScenario };
   if ((match = t('scenarios/([^/]+)'))) return { method, path, body, out: method === 'DELETE' ? identity : mapScenario };
+
+  if ((match = t('connectors'))) return { method, path, out: identity };
+  if ((match = t('connectors/([^/]+)/installation'))) return { method, path, body, out: identity };
+  if ((match = t('connections'))) return method === 'GET'
+    ? { method, path, out: (rows: any[]) => rows.map(mapConnection) }
+    : {
+      method, path, out: mapConnection,
+      body: { connector_id: body.connectorId, name: body.name, scope: body.ownerScope === 'space' ? 'tenant' : 'member', secret: body.secret || null },
+    };
+  if ((match = t('connections/([^/]+)/usage-policy'))) return {
+    method, path, out: identity,
+    // Bound workmates may use every tool of the connector; no workmates bound means nobody uses it (Part 6 §2 rule 3).
+    body: (body.agentIds || []).map((id: string) => ({ principal_type: 'agent', principal_ref: id, allowed_tools: body.tools })),
+  };
+  if ((match = t('connections/([^/]+)'))) {
+    const patch: Record<string, unknown> = {};
+    if (body && 'name' in body) patch.name = body.name;
+    if (body && 'enabled' in body) patch.status = body.enabled ? 'active' : 'suspended';
+    return { method, path, body: method === 'PATCH' ? patch : undefined, out: method === 'DELETE' ? identity : mapConnection };
+  }
 
   if ((match = t('members'))) return { method, path, out: (rows: any[]) => rows.map(mapMember) };
   if ((match = t('members/([^/]+)'))) {
