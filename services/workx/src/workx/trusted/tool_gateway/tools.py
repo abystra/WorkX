@@ -275,6 +275,18 @@ REGISTRY: dict[str, Tool] = {
             run=_feishu("POST", "/open-apis/docx/v1/documents", lambda a: {"title": a["title"]}),
         ),
         Tool(
+            "knowledge_search",
+            "Search the documents attached to you (company knowledge). Returns quoted passages with citation_id, "
+            "source, section and location. Cite passages you rely on as [[cite:<citation_id>]].",
+            {
+                "type": "object",
+                "properties": {"query": {"type": "string"}, "k": {"type": "integer", "minimum": 1, "maximum": 12}},
+                "required": ["query"],
+            },
+            "read",
+            # Served by the gateway itself (needs the Attempt's lease); see app.knowledge_search.
+        ),
+        Tool(
             "web_fetch",
             "Fetch a public web page as text.",
             {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},

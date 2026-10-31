@@ -37,6 +37,7 @@ PREFIXES = {
     "secret_version": "sev",
     "knowledge_source": "kns",
     "knowledge_revision": "knr",
+    "knowledge_chunk": "knc",
     "channel_binding": "chb",
     "channel_run": "chr",
     "approval": "apr",

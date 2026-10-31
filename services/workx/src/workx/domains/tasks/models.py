@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import Text
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from workx.core.orm import Base
@@ -75,4 +75,5 @@ class TaskMessage(Base):
     content: Mapped[str]
     author_membership_id: Mapped[uuid.UUID | None]
     file_id: Mapped[uuid.UUID | None]
+    citations: Mapped[list[Any]] = mapped_column(JSONB, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(server_default="now()")

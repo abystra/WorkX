@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import uuid
@@ -24,10 +25,12 @@ from starlette.concurrency import run_in_threadpool
 from workx.core.db import Database
 from workx.core.errors import ApiError
 from workx.core.settings import ModelGatewaySettings
+from workx.domains.knowledge.text import estimate_tokens
 from workx.domains.runtime.models import TenantBudget
 from workx.domains.usage import service as usage
 from workx.domains.usage.models import UsageEvent
 from workx.trusted.broker import tickets
+from workx.trusted.model_gateway import embeddings
 
 log = logging.getLogger("workx.model_gateway")
 
@@ -155,6 +158,36 @@ def create_model_gateway_app(
     @app.get("/healthz")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    embedder = embeddings.from_settings(settings)
+
+    @app.exception_handler(ApiError)
+    async def errors(_: object, exc: ApiError) -> JSONResponse:
+        return JSONResponse({"code": exc.code, "detail": exc.detail}, status_code=exc.status)
+
+    @app.post("/internal/embeddings")
+    def embed(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+        """Embedding Gateway (Part 7 §1): internal callers only; the provider key never leaves this process."""
+        token = request.headers.get("x-workx-internal-token", "")
+        if not hmac.compare_digest(token, settings.embedding_token.get_secret_value()):
+            raise ApiError(401, "UNAUTHENTICATED", "Internal token required.")
+        texts = body.get("texts")
+        if not isinstance(texts, list) or not texts or len(texts) > 256 or not all(isinstance(t, str) for t in texts):
+            raise ApiError(400, "VALIDATION_FAILED", "texts must be 1-256 strings.")
+        vectors = embedder.embed([t[:8000] for t in texts])
+        tenant = body.get("tenant_id")
+        if tenant:
+            with db.transaction(tenant_id=uuid.UUID(str(tenant))) as session:
+                usage.record(
+                    session,
+                    tenant_id=uuid.UUID(str(tenant)),
+                    kind="embedding_tokens",
+                    quantity=sum(estimate_tokens(t) for t in texts),
+                    unit="token",
+                    source_event_id=f"emb:{uuid.uuid4().hex}",
+                    data={"profile": embedder.profile, "count": len(texts)},
+                )
+        return {"profile": embedder.profile, "vectors": vectors}
 
     @app.post("/v1/messages", response_model=None)
     async def messages(request: Request) -> Response:

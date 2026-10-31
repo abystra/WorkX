@@ -22,6 +22,7 @@ RECONCILE_EVERY_MINUTES = 5
 def load_handlers() -> None:
     """Importing handler modules registers them. Each phase adds its modules here."""
     import workx.domains.connections.jobs
+    import workx.domains.knowledge.jobs
     import workx.domains.runtime.jobs
     import workx.domains.tenancy.jobs  # noqa: F401
 

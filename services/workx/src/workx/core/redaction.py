@@ -11,7 +11,8 @@ from typing import Any
 REDACTED = "[REDACTED]"
 
 _SENSITIVE_KEYS = re.compile(
-    r"(pass(word)?|secret|token|api[_-]?key|authorization|cookie|credential|private[_-]?key|refresh|ticket|code_verifier)",
+    r"(^pass$|passw(or)?d|passphrase|secret|token|api[_-]?key|authorization|cookie|credential|private[_-]?key|refresh"
+    r"|ticket|code_verifier)",
     re.IGNORECASE,
 )
 _SECRET_PATTERNS = [

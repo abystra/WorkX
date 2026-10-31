@@ -87,7 +87,9 @@ def stack(test_database: ProvisionedDatabase, db: Database, broker_db: Database,
         )
     )  # type: ignore[arg-type]
     tool_gw = Served(
-        create_tool_gateway_app(ToolGatewaySettings(**base, crm_base_url=crm.url), broker_db)  # type: ignore[arg-type]
+        create_tool_gateway_app(
+            ToolGatewaySettings(**base, crm_base_url=crm.url, model_gateway_url=model_gw.url), broker_db
+        )  # type: ignore[arg-type]
     )
     captured: list[dict[str, str]] = []
     settings = OrchestratorSettings(

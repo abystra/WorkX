@@ -90,6 +90,7 @@ def make_settings(test_database: ProvisionedDatabase, **overrides: object) -> Ap
         "public_base_url": WEB_BASE,
         "oidc": OidcSettings(issuer=ISSUER, allow_insecure_issuer=True),
         "broker_url": "http://testserver",
+        "model_gateway_url": "http://testserver",
     }
     values.update(overrides)
     return ApiSettings(**values)  # type: ignore[arg-type]
@@ -133,6 +134,16 @@ def broker_http(broker_app: FastAPI) -> TestClient:
 
 
 @pytest.fixture(scope="session")
+def embeddings_http(test_database: ProvisionedDatabase, db: Database) -> TestClient:
+    """In-process Model Gateway serving the Embedding Gateway with the development hash embedder."""
+    from workx.core.settings import ModelGatewaySettings
+    from workx.trusted.model_gateway.app import create_model_gateway_app
+
+    settings = ModelGatewaySettings(environment=Environment.TEST, database_url=test_database.app_url)
+    return TestClient(create_model_gateway_app(settings, db))
+
+
+@pytest.fixture(scope="session")
 def api_app(
     test_database: ProvisionedDatabase,
     db: Database,
@@ -140,9 +151,10 @@ def api_app(
     mail_dir: Path,
     objects_dir: Path,
     broker_http: TestClient,
+    embeddings_http: TestClient,
 ) -> FastAPI:
     settings = make_settings(test_database, mail_url=f"file:{mail_dir}", object_store_url=f"file:{objects_dir}")
-    return create_app(settings, db, oidc_http=oidc, broker_http=broker_http)
+    return create_app(settings, db, oidc_http=oidc, broker_http=broker_http, embeddings_http=embeddings_http)
 
 
 @pytest.fixture

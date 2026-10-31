@@ -37,6 +37,8 @@ class MessageOut(BaseModel):
     content: str
     file_id: str | None
     created_at: datetime
+    # Validated knowledge citations: ``[n]`` markers in ``content`` refer to these (Part 7 §9).
+    citations: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class TaskOut(BaseModel):
@@ -131,6 +133,7 @@ def _out(
                 content=m.content,
                 file_id=maybe("file", m.file_id),
                 created_at=m.created_at,
+                citations=list(m.citations or []),
             )
             for m in messages or []
         ]

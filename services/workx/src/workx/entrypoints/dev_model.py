@@ -81,6 +81,13 @@ SCRIPTS: dict[str, list[dict[str, Any]]] = {
         },
         {"text": "I saved the note in your Notes."},
     ],
+    "knowledge": [
+        {"text": "Let me check the policy.", "tool": ("knowledge_search", {"query": "hotel reimbursed per night"})},
+        {
+            "text": "Hotels are reimbursed up to 180 EUR per night [[cite:{cite0}]]. "
+            "Unverified claim [[cite:knc_0000000000000000000000000000]]."
+        },
+    ],
     "forbidden_tool": [
         {"tool": ("delete_everything", {})},
         {"text": "That tool is not available."},
@@ -113,6 +120,14 @@ def _fill(value: Any, outputs: str) -> Any:
     return value
 
 
+def _first_citation(body: dict[str, Any]) -> str:
+    """The first citation_id the tools returned in this conversation ({cite0} in scripts)."""
+    match = re.search(
+        r"knc_[0-9A-Za-z]{20,}", json.dumps([m for m in body.get("messages", []) if m.get("role") == "user"])
+    )
+    return match.group(0) if match else "knc_missing"
+
+
 def _step(body: dict[str, Any]) -> int:
     count = 0
     for message in body.get("messages", []):
@@ -142,7 +157,9 @@ def create_dev_model_app(*, key: str = UPSTREAM_KEY, environment: Environment = 
                 {"type": "error", "error": {"type": "authentication_error", "message": "bad key"}}, status_code=401
             )
         script = SCRIPTS[_scenario(body)]
-        step = script[min(_step(body), len(script) - 1)]
+        step = dict(script[min(_step(body), len(script) - 1)])
+        if "text" in step:
+            step["text"] = step["text"].replace("{cite0}", _first_citation(body))
 
         def stream() -> Iterator[str]:
             message_id = f"msg_{uuid.uuid4().hex[:12]}"

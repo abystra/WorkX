@@ -23,6 +23,8 @@ from workx.domains.connections import api as connections_api
 from workx.domains.connections.broker_client import BrokerClient
 from workx.domains.identity import api as identity_api
 from workx.domains.identity.oidc import OidcProvider
+from workx.domains.knowledge import api as knowledge_api
+from workx.domains.knowledge.embed import EmbeddingClient
 from workx.domains.resources import api as resources_api
 from workx.domains.resources import stream as stream_api
 from workx.domains.runtime import api as runtime_api
@@ -52,6 +54,7 @@ def create_app(
     *,
     oidc_http: httpx.Client | None = None,
     broker_http: httpx.Client | None = None,
+    embeddings_http: httpx.Client | None = None,
 ) -> FastAPI:
     settings = settings or ApiSettings()
     db = db or Database.connect(settings.database_url)
@@ -67,6 +70,11 @@ def create_app(
     state.services["objects"] = storage.from_url(settings.object_store_url)
     state.services["broker"] = BrokerClient(
         settings.broker_url, settings.broker_token.get_secret_value(), broker_http or httpx.Client(timeout=15)
+    )
+    state.services["embeddings"] = EmbeddingClient(
+        settings.model_gateway_url,
+        settings.embedding_token.get_secret_value(),
+        embeddings_http or httpx.Client(timeout=60),
     )
     app.state.workx = state
 
@@ -140,4 +148,5 @@ def domain_routers() -> list[APIRouter]:
         runtime_api.router,
         artifacts_api.router,
         connections_api.router,
+        knowledge_api.router,
     ]

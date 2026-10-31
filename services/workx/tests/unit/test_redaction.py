@@ -27,3 +27,10 @@ def test_log_records_are_redacted() -> None:
     line = json.loads(JsonFormatter().format(record))
     assert "SECRETSECRET" not in line["msg"]
     assert line["client_secret"] == REDACTED
+
+
+def test_ordinary_keys_that_contain_pass_are_kept() -> None:
+    value = {"passages": ["a"], "passenger": "b", "password": "c", "pass": "d", "user_passwd": "e", "passphrase": "f"}
+    out = redact(value)
+    assert out["passages"] == ["a"] and out["passenger"] == "b"
+    assert all(out[k] == REDACTED for k in ("password", "pass", "user_passwd", "passphrase"))

@@ -29,6 +29,10 @@ class BaseWorkxSettings(BaseSettings):
     secret_key: SecretStr = SecretStr(DEV_SECRET_KEY)
     database_url: str = "postgresql+psycopg://workx_app:workx_app_dev@127.0.0.1:54329/workx"
     log_level: str = "INFO"
+    # Embedding Gateway (part of the Model Gateway, Part 7 §1): internal callers (knowledge worker, Tool Gateway,
+    # API search) authenticate with this token; only the gateway holds the provider key.
+    model_gateway_url: str = "http://127.0.0.1:8200"
+    embedding_token: SecretStr = SecretStr("workx-dev-embedding-token")
 
     @property
     def is_production(self) -> bool:
@@ -77,6 +81,8 @@ class ApiSettings(BaseWorkxSettings):
     session_absolute_days: int = 30
     cors_origins: list[str] = Field(default_factory=list)
     enable_test_seed: bool = False
+    # Apache Tika server for knowledge parsing (PDF/Office/OCR). Empty: built-in parsers (no OCR, no legacy Office).
+    tika_url: str = ""
     oidc: OidcSettings = Field(default_factory=OidcSettings)
 
     @model_validator(mode="after")
@@ -115,6 +121,19 @@ class ModelGatewaySettings(BaseWorkxSettings):
     anthropic_base_url: str = "https://api.anthropic.com"
     anthropic_api_key: SecretStr = SecretStr("")
     upstream_timeout_seconds: float = 600.0
+    # Embeddings (Q-09: provider chosen per deployment). "openai" = any OpenAI-compatible /v1/embeddings API;
+    # "hash" = deterministic feature hashing for development and tests only (refused in staging/production).
+    embedding_provider: str = "hash"
+    embedding_base_url: str = ""
+    embedding_api_key: SecretStr = SecretStr("")
+    embedding_model: str = ""
+    embedding_dimensions: int = 256
+
+    @model_validator(mode="after")
+    def _guard_embeddings(self) -> ModelGatewaySettings:
+        if self.is_production and self.embedding_provider == "hash":
+            raise ValueError("Set WORKX_EMBEDDING_PROVIDER=openai (and its URL, key, model) in staging or production")
+        return self
 
 
 class ToolGatewaySettings(TrustedSettings):
@@ -132,7 +151,6 @@ class OrchestratorSettings(BaseWorkxSettings):
     e2b_api_key: SecretStr = SecretStr("")
     e2b_template: str = "workx-runtime"
     runner_engine: str = "claude-agent-sdk"
-    model_gateway_url: str = "http://127.0.0.1:8200"
     tool_gateway_url: str = "http://127.0.0.1:8210"
     max_turns: int = 40
     wall_seconds: int = 1800

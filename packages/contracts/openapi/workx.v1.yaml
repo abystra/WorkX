@@ -2622,6 +2622,232 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/knowledge-sources:
+    get:
+      tags:
+      - knowledge
+      summary: Knowledge sources made from files you can read
+      operationId: list_sources_api_v1_tenants__tenant_id__knowledge_sources_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceOut'
+                title: Response List Sources Api V1 Tenants  Tenant Id  Knowledge Sources Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - knowledge
+      summary: Make a Library file a knowledge source (idempotent per file); starts ingestion
+      operationId: create_source_api_v1_tenants__tenant_id__knowledge_sources_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/knowledge-sources/{source_id}:
+    get:
+      tags:
+      - knowledge
+      summary: Knowledge source with ingestion status
+      operationId: get_source_api_v1_tenants__tenant_id__knowledge_sources__source_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Source Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - knowledge
+      summary: Stop using a file as knowledge (excluded from search immediately)
+      operationId: delete_source_api_v1_tenants__tenant_id__knowledge_sources__source_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Source Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/knowledge-sources/{source_id}/reindex:
+    post:
+      tags:
+      - knowledge
+      summary: Build a new revision
+      operationId: reindex_api_v1_tenants__tenant_id__knowledge_sources__source_id__reindex_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: source_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Source Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/agents/{agent_id}/knowledge:
+    put:
+      tags:
+      - knowledge
+      summary: Knowledge sources a workmate may search
+      operationId: set_agent_knowledge_api_v1_tenants__tenant_id__agents__agent_id__knowledge_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentKnowledgeIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Set Agent Knowledge Api V1 Tenants  Tenant Id  Agents  Agent Id  Knowledge Put
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/knowledge/search:
+    post:
+      tags:
+      - knowledge
+      summary: Search knowledge you can read (hybrid, cited)
+      operationId: search_knowledge_api_v1_tenants__tenant_id__knowledge_search_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PassageOut'
+                title: Response Search Knowledge Api V1 Tenants  Tenant Id  Knowledge Search Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -2685,6 +2911,18 @@ components:
       required:
       - name
       title: AgentIn
+    AgentKnowledgeIn:
+      properties:
+        source_ids:
+          items:
+            type: string
+          type: array
+          maxItems: 50
+          title: Source Ids
+      type: object
+      required:
+      - source_ids
+      title: AgentKnowledgeIn
     AgentOut:
       properties:
         id:
@@ -3727,6 +3965,12 @@ components:
           type: string
           format: date-time
           title: Created At
+        citations:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Citations
       type: object
       required:
       - id
@@ -3748,6 +3992,44 @@ components:
       - id
       - label
       title: ModelOut
+    PassageOut:
+      properties:
+        citation_id:
+          type: string
+          title: Citation Id
+        source_id:
+          type: string
+          title: Source Id
+        source:
+          type: string
+          title: Source
+        section:
+          type: string
+          title: Section
+        locator:
+          additionalProperties: true
+          type: object
+          title: Locator
+        text:
+          type: string
+          title: Text
+        score:
+          type: number
+          title: Score
+        flagged:
+          type: boolean
+          title: Flagged
+      type: object
+      required:
+      - citation_id
+      - source_id
+      - source
+      - section
+      - locator
+      - text
+      - score
+      - flagged
+      title: PassageOut
     PolicyRule:
       properties:
         principal_type:
@@ -3892,6 +4174,49 @@ components:
           title: Shared Context
       type: object
       title: ProjectPatch
+    RevisionOut:
+      properties:
+        revision:
+          type: integer
+          title: Revision
+        state:
+          type: string
+          title: State
+        stage:
+          type: string
+          title: Stage
+        completeness:
+          type: string
+          title: Completeness
+        parser:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Parser
+        chunk_count:
+          type: integer
+          title: Chunk Count
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - revision
+      - state
+      - stage
+      - completeness
+      - parser
+      - chunk_count
+      - error_code
+      - note
+      title: RevisionOut
     RosterIn:
       properties:
         member_ids:
@@ -3987,6 +4312,31 @@ components:
       - ecosystems
       - updated_at
       title: ScenarioOut
+    SearchIn:
+      properties:
+        query:
+          type: string
+          maxLength: 2000
+          minLength: 1
+          title: Query
+        source_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 50
+          - type: 'null'
+          title: Source Ids
+        k:
+          type: integer
+          maximum: 20.0
+          minimum: 1.0
+          title: K
+          default: 8
+      type: object
+      required:
+      - query
+      title: SearchIn
     SecretIn:
       properties:
         secret:
@@ -4091,6 +4441,52 @@ components:
       - description
       - category
       title: SkillOut
+    SourceIn:
+      properties:
+        file_id:
+          type: string
+          title: File Id
+      type: object
+      required:
+      - file_id
+      title: SourceIn
+    SourceOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        file_id:
+          type: string
+          title: File Id
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        latest:
+          anyOf:
+          - $ref: '#/components/schemas/RevisionOut'
+          - type: 'null'
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - file_id
+      - name
+      - status
+      - error_code
+      - latest
+      - updated_at
+      title: SourceOut
     TaskIn:
       properties:
         agent_id:

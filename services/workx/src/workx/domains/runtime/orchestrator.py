@@ -33,6 +33,7 @@ from workx.domains.artifacts import service as artifacts
 from workx.domains.artifacts.validate import MAX_FILE_BYTES, Rejected
 from workx.domains.connections import resolve
 from workx.domains.connections.models import AuthorizationRequest
+from workx.domains.knowledge import citations
 from workx.domains.resources import events as tenant_events
 from workx.domains.resources.models import Project
 from workx.domains.runtime import leases
@@ -189,6 +190,8 @@ class Orchestrator:
                 scopes={"model": model},
                 ttl=ttl,
             )
+            knowledge_sources = [str(k) for k in version.knowledge_source_ids]
+            tools = [*bindings.tools, *(["knowledge_search"] if knowledge_sources else [])]
             tool_ticket = leases.issue(
                 session,
                 tenant_id=tenant_id,
@@ -196,10 +199,12 @@ class Orchestrator:
                 attempt_id=attempt.id,
                 kind="tool",
                 scopes={
-                    "tools": bindings.tools,
+                    "tools": tools,
                     "connections": bindings.connections,
                     "connection_ids": sorted(set(bindings.connections.values())),
                     "epochs": bindings.epochs,
+                    # Retrieval runs as the initiator: their access to each source is checked per query.
+                    "knowledge": {"source_ids": knowledge_sources, "membership_id": str(initiator.id)},
                 },
                 ttl=ttl,
             )
@@ -252,6 +257,7 @@ class Orchestrator:
                         f"Project context:\n{project.context_md.strip()}"
                         if project and project.context_md.strip()
                         else "",
+                        citations.INSTRUCTION if knowledge_sources else "",
                     )
                     if part
                 ),
@@ -478,13 +484,17 @@ class Orchestrator:
                 state.error = str(payload.get("detail", ""))[:500]
                 payload = {"detail": state.error}
             elif kind == "assistant.message":
+                content, cited, invalid = citations.resolve(session, task.id, str(payload.get("text", "")))
+                if invalid:
+                    payload = {**payload, "invalid_citations": invalid}
                 session.add(
                     TaskMessage(
                         id=ids.uuid7(),
                         tenant_id=started.tenant_id,
                         task_id=task.id,
                         role="assistant",
-                        content=str(payload.get("text", "")),
+                        content=content,
+                        citations=cited,
                         created_at=utcnow(),
                     )
                 )
