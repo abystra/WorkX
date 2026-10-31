@@ -1399,6 +1399,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/automations/{automation_id}/runs:
+    get:
+      tags:
+      - resources
+      summary: Scheduled runs of an automation
+      operationId: automation_runs_api_v1_tenants__tenant_id__automations__automation_id__runs_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: automation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Automation Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationRunOut'
+                title: Response Automation Runs Api V1 Tenants  Tenant Id  Automations  Automation Id  Runs Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/tenants/{tenant_id}/scenarios:
     get:
       tags:
@@ -3685,6 +3720,36 @@ components:
           title: Enabled
       type: object
       title: AutomationPatch
+    AutomationRunOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        slot_at:
+          type: string
+          format: date-time
+          title: Slot At
+        status:
+          type: string
+          title: Status
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+      type: object
+      required:
+      - id
+      - slot_at
+      - status
+      - reason
+      - task_id
+      title: AutomationRunOut
     BindingIn:
       properties:
         platform:

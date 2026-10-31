@@ -25,7 +25,7 @@ Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (32/
 - **Knowledge (P-08):** attaching Library files to a workmate creates knowledge sources; the worker parses, chunks, embeds and indexes them, and the status changes from Processing to Ready (or Processing failed, with the reason). Answers that use the knowledge show numbered citations and a Sources list; citations the workmate did not actually retrieve are removed. Locally, embeddings come from the development hash embedder in the Model Gateway.
 - **Channels (P-09):** Ecosystem bindings (Feishu bot, WeCom app) and the channel workbench use the API. The wizard creates the binding; the connection dialog's Save sends app ID / corp ID to the binding and the secrets to the broker; the preview shows the callback URL to admins and a "Link my chat account" code to members. Runs show real stages, including "Account not linked", "Not addressed to the bot" and blocked deliveries. Locally, replies go to `workx dev-channels`. Other connection methods (Feishu webhook/API, WeCom AI bot and webhook) have no backend yet; saving them fails.
 - **Task execution:** a task started in the browser runs through the real orchestrator, runner, Model Gateway, Tool Gateway and test CRM. The conversation shows the answer and the result file. Locally the upstream model is `workx dev-model` (scripted) unless `WORKX_ANTHROPIC_API_KEY` is set; see `runtime/README.md`. Approve/reject, stop and retry are wired to the API.
-- **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (any validated type; downloads go through the API), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (stored with cron and time zone), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
+- **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (any validated type; downloads go through the API), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (cron and time zone; the worker's scheduler creates a task as the owner at each slot, once), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
 
 ## 3. Not yet served by the API
 
@@ -34,7 +34,6 @@ These calls are answered inside the transport: lists return empty, writes fail w
 | Area | Calls | Phase |
 | --- | --- | --- |
 | Simulated channel messages | `/channel-messages` (development adapter only) | — |
-| Automation runs | Schedules are stored and `next_run_at` is computed; nothing runs them | P-10 |
 
 ## 4. Contract notes for reviewers
 

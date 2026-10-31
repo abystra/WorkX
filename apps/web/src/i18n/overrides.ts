@@ -11,5 +11,5 @@ export const COPY_OVERRIDES: Record<string, { en: string; 'zh-CN': string }> = {
   'spaces.accountHint': { en: 'Your email is used for sign-in and invitations. Contact support to change it.', 'zh-CN': '邮箱用于登录与接收邀请，如需更改请联系支持。' },
   'saas.boundary': { en: 'Workspace roles manage the organization. Access to content is granted per resource.', 'zh-CN': '空间角色负责组织管理；内容访问按资源单独授权。' },
   'saas.memberNote': { en: 'Deactivating a member ends their sessions and stops tasks they started.', 'zh-CN': '停用成员会结束其登录会话，并停止其发起的任务。' },
-  '原型仅演示自动化配置与状态切换，不会真正定时执行。': { en: 'Scheduled runs start once the scheduler is enabled for this workspace. You can create and pause automations now.', 'zh-CN': '空间启用调度服务后才会按时执行；现在可以创建和暂停自动化。' },
+  '原型仅演示自动化配置与状态切换，不会真正定时执行。': { en: 'Automations run on schedule as you and create a task each time. Paused automations do not run.', 'zh-CN': '自动化会按时以你的身份执行，每次生成一个任务；已暂停的自动化不会执行。' },
 };

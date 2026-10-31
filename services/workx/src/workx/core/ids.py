@@ -31,6 +31,7 @@ PREFIXES = {
     "attempt": "att",
     "artifact": "art",
     "automation": "aut",
+    "automation_run": "aur",
     "scenario": "scn",
     "connection": "con",
     "credential": "crd",

@@ -13,6 +13,7 @@ import httpx
 from workx.core.db import Database
 from workx.core.settings import ApiSettings
 from workx.domains.connections.broker_client import BrokerClient
+from workx.domains.resources.scheduler import schedule_tick
 from workx.platform import jobs, mail
 
 log = logging.getLogger("workx.worker")
@@ -24,6 +25,7 @@ def load_handlers() -> None:
     import workx.domains.channels.jobs
     import workx.domains.connections.jobs
     import workx.domains.knowledge.jobs
+    import workx.domains.resources.scheduler
     import workx.domains.runtime.jobs
     import workx.domains.tenancy.jobs  # noqa: F401
 
@@ -57,6 +59,7 @@ def run(*, once: bool = False, idle_sleep: float = 1.0) -> int:
     log.info("worker started", extra={"worker": worker_id, "handlers": sorted(jobs.registered())})
     while True:
         schedule_reconcile(ctx)
+        schedule_tick(ctx)
         counts = jobs.run_once(ctx, worker_id)
         if once:
             print(counts)

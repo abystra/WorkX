@@ -122,3 +122,16 @@ class Scenario(Base):
     deleted_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = mapped_column(server_default="now()")
     updated_at: Mapped[datetime] = mapped_column(server_default="now()")
+
+
+class AutomationRun(Base):
+    __tablename__ = "automation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    tenant_id: Mapped[uuid.UUID]
+    automation_id: Mapped[uuid.UUID]
+    slot_at: Mapped[datetime]
+    status: Mapped[str]
+    reason: Mapped[str | None]
+    task_id: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(server_default="now()")

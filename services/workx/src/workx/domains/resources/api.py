@@ -604,6 +604,41 @@ def delete_automation(tenant_id: str, automation_id: str, principal: Authenticat
     return Response(status_code=204)
 
 
+class AutomationRunOut(BaseModel):
+    id: str
+    slot_at: datetime
+    status: str
+    reason: str | None
+    task_id: str | None
+
+
+@router.get("/tenants/{tenant_id}/automations/{automation_id}/runs", summary="Scheduled runs of an automation")
+def automation_runs(
+    tenant_id: str, automation_id: str, principal: Authenticated, state: State
+) -> list[AutomationRunOut]:
+    from workx.domains.resources.models import AutomationRun
+
+    with _scope(state, principal, tenant_id) as (session, actor):
+        automation = load(session, Automation, actor, automation_id, "automation")
+        require(session, actor, "read", "automation", automation)
+        rows = session.execute(
+            select(AutomationRun)
+            .where(AutomationRun.automation_id == automation.id)
+            .order_by(AutomationRun.slot_at.desc())
+            .limit(50)
+        ).scalars()
+        return [
+            AutomationRunOut(
+                id=ids.encode("automation_run", r.id),
+                slot_at=r.slot_at,
+                status=r.status,
+                reason=r.reason,
+                task_id=ids.encode("task", r.task_id) if r.task_id else None,
+            )
+            for r in rows
+        ]
+
+
 # ---------------------------------------------------------------- scenarios (business scenario drafts)
 
 

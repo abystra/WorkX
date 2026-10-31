@@ -36,10 +36,10 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-UI-02 | Fidelity test seed + web target | P-04 | 🟡 | ✅ | n/a | Adapter seed and web target done (272/274 pass). A backend seed endpoint for capturing fidelity against the real API is deferred to P-12, when every screen is API-backed |
 | B-UI-03 | CI fidelity job | P-12 | ⬜ | ⬜ | n/a | |
 | B-UI-04 | Design sign-off for new screens | — | 🟡 | n/a | n/a | Documented in apps/web/docs/NEW-SCREENS.md; sign-off is a human decision |
-| R2-1 | WeCom channel | P-09 | ⬜ | ⬜ | ⬜ | Real: WeCom app |
+| R2-1 | WeCom channel | P-09 | ✅ | ✅ | ⛔ | Self-built app callback (msg_signature, AES, receive id) and message/send; direct messages only; tested with real encrypted callbacks against `workx dev-channels`. WeCom AI bot not built. Real: WeCom corp app |
 | R2-2 | Credential Worker (class D) + Feishu CLI wrapper | P-10 | ⬜ | ⬜ | ⬜ | |
 | R2-3 | Connector knowledge sync | P-10 | ⬜ | ⬜ | ⬜ | |
-| R2-4 | Automations scheduler | P-10 | ⬜ | ⬜ | n/a | |
+| R2-4 | Automations scheduler | P-10 | ✅ | ✅ | n/a | Worker tick each minute (deduped); due automations found by a narrow SECURITY DEFINER function; one run per slot; after downtime the latest missed slot runs once; runs as the owner; skipped runs recorded with a reason; runs API |
 | R2-5 | Organization SSO and re-auth | P-10 | ⬜ | ⬜ | ⬜ | |
 | R3-1 | Plans, seats, quota enforcement | P-11 | ⬜ | ⬜ | n/a | |
 | R3-2 | Billing integration | P-11 | ⬜ | ⬜ | ⬜ | Real: payment provider (not chosen) |

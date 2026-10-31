@@ -127,11 +127,11 @@ Source: `src/i18n/overrides.ts`. Same position, similar length. Prototype-only c
 | `spaces.accountHint` | Your email is used for sign-in and invitations. Contact support to change it. | 邮箱用于登录与接收邀请，… |
 | `saas.boundary` | Workspace roles manage the organization. Access to content is granted per resource. | 空间角色负责组织管理；… |
 | `saas.memberNote` | Deactivating a member ends their sessions and stops tasks they started. | 停用成员会结束其登录会话，… |
-| Automation note | Scheduled runs start once the scheduler is enabled for this workspace. You can create and pause automations now. | 空间启用调度服务后才会按时执行；… |
+| Automation note | Automations run on schedule as you and create a task each time. Paused automations do not run. | 自动化会按时以你的身份执行，… |
 
 Copy that describes **simulated** behavior is not reworded. It is shown only while the development adapter is active (`runtime.simulated`): demo badges, "Simulate incoming message", "Replay same event", connection-test simulation and the simulated-answer footnote.
 
-**For review:** the automation note promises a scheduler that does not exist yet. Keep it, or hide the note until the scheduler ships.
+The automation note was reworded once the scheduler shipped (P-10).
 
 ## 4. Other added states
 
