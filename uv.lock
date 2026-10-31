@@ -2598,6 +2598,7 @@ dev = [
     { name = "pytest-timeout" },
     { name = "ruff" },
     { name = "types-pyyaml" },
+    { name = "workx", extra = ["s3"] },
     { name = "workx-runner", extra = ["sdk"] },
 ]
 
@@ -2615,6 +2616,7 @@ dev = [
     { name = "pytest-timeout", specifier = ">=2.3" },
     { name = "ruff", specifier = ">=0.8" },
     { name = "types-pyyaml" },
+    { name = "workx", extras = ["s3"], editable = "services/workx" },
     { name = "workx-runner", extras = ["sdk"], editable = "runtime/runner" },
 ]
 

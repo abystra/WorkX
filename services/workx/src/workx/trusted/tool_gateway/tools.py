@@ -29,19 +29,24 @@ class Tool:
     key_fields: tuple[str, ...] = ()
     approval: bool = False
     summary: Callable[[dict[str, Any]], str] = field(default=lambda args: "")
-    run: Callable[[ToolGatewaySettings, httpx.Client, dict[str, Any]], dict[str, Any]] = field(
-        default=lambda s, c, a: {}
+    # (settings, client, args, secret): ``secret`` is the bound connection's credential, None for class 0 tools.
+    run: Callable[[ToolGatewaySettings, httpx.Client, dict[str, Any], str | None], dict[str, Any]] = field(
+        default=lambda s, c, a, k: {}
     )
 
 
-def _crm_headers(settings: ToolGatewaySettings) -> dict[str, str]:
-    return {"X-Api-Key": settings.crm_api_key.get_secret_value()}
+def _crm_headers(secret: str | None) -> dict[str, str]:
+    if not secret:
+        raise ToolFailure("No credential for this connection.")
+    return {"X-Api-Key": secret}
 
 
-def _crm_list(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any]) -> dict[str, Any]:
+def _crm_list(
+    settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any], secret: str | None
+) -> dict[str, Any]:
     response = http.get(
         f"{settings.crm_base_url}/accounts",
-        headers=_crm_headers(settings),
+        headers=_crm_headers(secret),
         params={"limit": int(args.get("limit", 20))},
     )
     if response.status_code != 200:
@@ -49,10 +54,12 @@ def _crm_list(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str,
     return {"accounts": response.json()}
 
 
-def _crm_note(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any]) -> dict[str, Any]:
+def _crm_note(
+    settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any], secret: str | None
+) -> dict[str, Any]:
     response = http.post(
         f"{settings.crm_base_url}/notes",
-        headers=_crm_headers(settings),
+        headers=_crm_headers(secret),
         json={"account_id": args["account_id"], "text": args["text"]},
     )
     if response.status_code not in (200, 201):
@@ -60,10 +67,12 @@ def _crm_note(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str,
     return {"note": response.json()}
 
 
-def _crm_email(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any]) -> dict[str, Any]:
+def _crm_email(
+    settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any], secret: str | None
+) -> dict[str, Any]:
     response = http.post(
         f"{settings.crm_base_url}/emails",
-        headers=_crm_headers(settings),
+        headers=_crm_headers(secret),
         json={"account_id": args["account_id"], "subject": args["subject"], "body": args["body"]},
     )
     if response.status_code not in (200, 201):
@@ -71,7 +80,9 @@ def _crm_email(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str
     return {"email": response.json()}
 
 
-def _web_fetch(settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any]) -> dict[str, Any]:
+def _web_fetch(
+    settings: ToolGatewaySettings, http: httpx.Client, args: dict[str, Any], secret: str | None
+) -> dict[str, Any]:
     url = str(args.get("url", ""))
     for _hop in range(4):
         try:

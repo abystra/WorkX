@@ -24,10 +24,10 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-12 | Orchestrator, leases, fencing, events, SSE | P-05 | ✅ | ✅ | ⛔ | Fence-checked frames, leases + heartbeat, coalesced deltas, task SSE with replay; web conversation shows real runs (17/17 browser checks). Real: with E2B + Anthropic |
 | B-13 | Artifact ingestion, validation, Library | P-06 | ✅ | ✅ | ⬜ | Content-based validation (OOXML structure, traversal, bombs, macros, PDF, UTF-8, images), previews, versions with retry dedupe, partial results, tenant-prefixed object keys, authorized download only, uploads. XLSX produced by the real Claude Code CLI downloaded and opened in tests. Filesystem store tested; S3 store needs a real bucket |
 | B-14 | Cancel/retry/recovery, approvals | P-05 | ✅ | ✅ | ⛔ | Cancel revokes tickets and kills after 20 s; reconciler → interrupted; retry with next fence, no duplicate writes; approvals bound to argument digests, UI approve/reject. Checkpoints/resume of SDK sessions not built (fresh attempt with history) |
-| B-15 | KeyProvider, secret versions, API-key connections | P-07 | ⬜ | ⬜ | ⬜ | Real: KMS/OpenBao |
+| B-15 | KeyProvider, secret versions, API-key connections | P-07 | ✅ | ✅ | ⛔ | Local (HKDF + AES-GCM), OpenBao Transit and AWS KMS providers; envelope encryption with AAD bound to tenant/credential/version; secret tables readable only by `workx_broker`; rotation with a 10-minute grace, crypto-shredding. Tests: local provider end to end; OpenBao Transit (fake HTTP engine) and AWS KMS (botocore Stubber against the service model) at the protocol level. Real: no OpenBao or KMS reachable here |
 | B-16 | OAuth (Feishu user, MCP), needs_auth resume | P-07 | ⬜ | ⬜ | ⬜ | Real: Feishu app, MCP server |
-| B-17 | Org-shared connections, usage policies | P-07 | ⬜ | ⬜ | n/a | |
-| B-18 | Member removal / revocation effects on tasks | P-07 | ⬜ | ⬜ | n/a | |
+| B-17 | Org-shared connections, usage policies | P-07 | ✅ | ✅ | n/a | Member/tenant scope, policies default to no use, epoch bump on change; tool bindings resolved at task start and re-checked per call |
+| B-18 | Member removal / revocation effects on tasks | P-07 | ✅ | ✅ | n/a | Revocation revokes leases naming the connection (active task loses tool use at once, verified in the slice) and shreds secrets; deactivation cancels the member's live tasks and suspends their connections. Ownership rule on departure is open decision 17 |
 | B-19 | Knowledge ingest, parse, chunk, embed, index | P-08 | 🟡 | 🟡 | ⬜ | UI on the development adapter only; Real: Tika, embedding provider |
 | B-20 | Retrieval tool, citations, ACL | P-08 | ⬜ | ⬜ | n/a | |
 | B-21 | Feishu bot channel, delivery, inbox | P-09 | 🟡 | 🟡 | ⬜ | UI on the development adapter only; Real: Feishu app |

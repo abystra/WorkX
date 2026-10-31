@@ -31,13 +31,15 @@ from workx.core.settings import OrchestratorSettings
 from workx.domains.agents.models import AgentVersion
 from workx.domains.artifacts import service as artifacts
 from workx.domains.artifacts.validate import MAX_FILE_BYTES, Rejected
+from workx.domains.connections import resolve
+from workx.domains.connections.models import AuthorizationRequest
 from workx.domains.resources import events as tenant_events
 from workx.domains.resources.models import Project
 from workx.domains.runtime import leases
-from workx.domains.runtime.catalog import DEFAULT_TOOLS
 from workx.domains.runtime.models import Approval, TaskAttempt, TaskEvent, ToolOperation
 from workx.domains.runtime.sandbox import Sandbox, SandboxProvider, gateway_hosts
 from workx.domains.tasks.models import Task, TaskMemberState, TaskMessage
+from workx.domains.tenancy.models import Membership
 from workx.platform import jobs, storage
 
 log = logging.getLogger("workx.orchestrator")
@@ -157,6 +159,19 @@ class Orchestrator:
             )
             session.add(attempt)
             session.flush()
+            initiator = session.get(Membership, task.created_by_membership_id)
+            assert initiator is not None
+            bindings = resolve.resolve(
+                session,
+                tenant_id=tenant_id,
+                initiator=initiator,
+                agent_id=task.agent_id,
+                project_id=task.project_id,
+                required_connectors=[str(r.get("connector")) for r in version.tool_refs if isinstance(r, dict)],
+            )
+            if bindings.missing_user_auth:
+                self._needs_auth(session, task, initiator, bindings.missing_user_auth)
+                return None
             ttl = timedelta(seconds=self.settings.wall_seconds + 300)
             model_ticket = leases.issue(
                 session,
@@ -173,7 +188,12 @@ class Orchestrator:
                 task_id=task.id,
                 attempt_id=attempt.id,
                 kind="tool",
-                scopes={"tools": list(DEFAULT_TOOLS)},
+                scopes={
+                    "tools": bindings.tools,
+                    "connections": bindings.connections,
+                    "connection_ids": sorted(set(bindings.connections.values())),
+                    "epochs": bindings.epochs,
+                },
                 ttl=ttl,
             )
             messages = (
@@ -243,6 +263,36 @@ class Orchestrator:
             return Started(
                 tenant_id, task.id, attempt.id, attempt.fencing_token, spec, model_ticket, tool_ticket, audience
             )
+
+    def _needs_auth(self, session: Session, task: Task, initiator: Membership, connectors: list[str]) -> None:
+        """Preflight (Part 4 §11): the initiator has not connected a required account. No sandbox is created."""
+        for connector_id in connectors:
+            existing = session.execute(
+                select(AuthorizationRequest).where(
+                    AuthorizationRequest.task_id == task.id,
+                    AuthorizationRequest.connector_id == connector_id,
+                    AuthorizationRequest.status == "pending",
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                session.add(
+                    AuthorizationRequest(
+                        id=ids.uuid7(),
+                        tenant_id=task.tenant_id,
+                        task_id=task.id,
+                        connector_id=connector_id,
+                        target_membership_id=initiator.id,
+                    )
+                )
+        self._set_status(session, task, "needs_auth", "needs_auth:" + ",".join(connectors))
+        self._event(session, task, None, None, "auth.required", {"connectors": connectors})
+        tenant_events.publish(
+            session,
+            task.tenant_id,
+            "task.needs_auth",
+            {"task_id": ids.encode("task", task.id)},
+            audience=[initiator.id],
+        )
 
     # ------------------------------------------------------------------------------------------- supervision
 

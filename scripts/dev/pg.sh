@@ -44,10 +44,16 @@ DO \$\$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'workx_app') THEN
     CREATE ROLE workx_app LOGIN PASSWORD '$APP_PW' NOSUPERUSER NOBYPASSRLS;
   END IF;
+  -- Trusted processes (broker, gateways): workx_app rights plus the secret tables (Part 6 §3.1).
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'workx_broker') THEN
+    CREATE ROLE workx_broker LOGIN PASSWORD 'workx_broker_dev' NOSUPERUSER NOBYPASSRLS;
+  END IF;
 END \$\$;
 SQL
-  # Test databases are created by workx_owner, which must be able to grant to workx_app.
+  # Test databases are created by workx_owner, which must be able to grant to the runtime roles.
   psql_admin -d postgres -c "GRANT workx_app TO workx_owner" >/dev/null
+  psql_admin -d postgres -c "GRANT workx_broker TO workx_owner" >/dev/null
+  psql_admin -d postgres -c "GRANT workx_app TO workx_broker" >/dev/null
   if [ "$(psql_admin -d postgres -c "SELECT 1 FROM pg_database WHERE datname = 'workx'")" != "1" ]; then
     psql_admin -d postgres -c "CREATE DATABASE workx OWNER workx_owner" >/dev/null
   fi
@@ -72,6 +78,7 @@ case "${1:-start}" in
   url)
     echo "export WORKX_DATABASE_URL=postgresql+psycopg://workx_app:$APP_PW@127.0.0.1:$PG_PORT/workx"
     echo "export WORKX_MIGRATION_DATABASE_URL=postgresql+psycopg://workx_owner:$OWNER_PW@127.0.0.1:$PG_PORT/workx"
+    echo "export WORKX_BROKER_DATABASE_URL=postgresql+psycopg://workx_broker:workx_broker_dev@127.0.0.1:$PG_PORT/workx"
     ;;
   *) echo "usage: $0 start|stop|status|reset|url" >&2; exit 2 ;;
 esac

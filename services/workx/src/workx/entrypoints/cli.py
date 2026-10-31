@@ -59,7 +59,13 @@ def main(argv: list[str] | None = None) -> int:
     jr.add_argument("job_id")
 
     sub.add_parser("orchestrator", help="run the orchestrator (claims queued tasks, supervises attempts)")
-    for name, port in (("model-gateway", 8200), ("tool-gateway", 8210), ("dev-crm", 8300), ("dev-model", 8400)):
+    for name, port in (
+        ("model-gateway", 8200),
+        ("tool-gateway", 8210),
+        ("broker", 8220),
+        ("dev-crm", 8300),
+        ("dev-model", 8400),
+    ):
         gateway = sub.add_parser(name, help=f"run the {name}")
         gateway.add_argument("--host", default="127.0.0.1")
         gateway.add_argument("--port", type=int, default=port)
@@ -122,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
         configure(OrchestratorSettings().log_level)
         return run_orchestrator()
 
-    if args.command in ("model-gateway", "tool-gateway", "dev-crm", "dev-model"):
+    if args.command in ("model-gateway", "tool-gateway", "broker", "dev-crm", "dev-model"):
         import uvicorn
 
         from workx.entrypoints import gateways
@@ -130,6 +136,7 @@ def main(argv: list[str] | None = None) -> int:
         app = {
             "model-gateway": gateways.model_gateway,
             "tool-gateway": gateways.tool_gateway,
+            "broker": gateways.broker,
             "dev-crm": gateways.dev_crm,
             "dev-model": gateways.dev_model,
         }[args.command]()

@@ -2203,6 +2203,314 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connectors:
+    get:
+      tags:
+      - connections
+      summary: Connector catalog and this workspace's installations
+      operationId: connectors_api_v1_tenants__tenant_id__connectors_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectorOut'
+                title: Response Connectors Api V1 Tenants  Tenant Id  Connectors Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connectors/{connector_id}/installation:
+    put:
+      tags:
+      - connections
+      summary: Install, configure or disable a connector
+      operationId: install_api_v1_tenants__tenant_id__connectors__connector_id__installation_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connector Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallationIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectorOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connections:
+    get:
+      tags:
+      - connections
+      summary: 'Connections: yours, shared ones, and (for admins) all metadata'
+      operationId: list_connections_api_v1_tenants__tenant_id__connections_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectionOut'
+                title: Response List Connections Api V1 Tenants  Tenant Id  Connections Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - connections
+      summary: Create a connection (API keys go to the broker)
+      operationId: create_connection_api_v1_tenants__tenant_id__connections_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connections/{connection_id}/secret:
+    post:
+      tags:
+      - connections
+      summary: Rotate the connection's API key
+      operationId: rotate_api_v1_tenants__tenant_id__connections__connection_id__secret_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecretIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connections/{connection_id}:
+    patch:
+      tags:
+      - connections
+      summary: Rename, pause or resume a connection
+      operationId: patch_connection_api_v1_tenants__tenant_id__connections__connection_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - connections
+      summary: 'Revoke a connection (admins: any)'
+      operationId: revoke_api_v1_tenants__tenant_id__connections__connection_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connections/{connection_id}/usage-policy:
+    get:
+      tags:
+      - connections
+      summary: Who may use a shared connection
+      operationId: get_policy_api_v1_tenants__tenant_id__connections__connection_id__usage_policy_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyRule'
+                title: Response Get Policy Api V1 Tenants  Tenant Id  Connections  Connection Id  Usage Policy Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - connections
+      summary: Set who may use a shared connection
+      operationId: put_policy_api_v1_tenants__tenant_id__connections__connection_id__usage_policy_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PolicyRule'
+              title: Body
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PolicyRule'
+                title: Response Put Policy Api V1 Tenants  Tenant Id  Connections  Connection Id  Usage Policy Put
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -2655,6 +2963,158 @@ components:
           title: Per Task Token Limit
       type: object
       title: BudgetIn
+    ConnectionIn:
+      properties:
+        connector_id:
+          type: string
+          title: Connector Id
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        scope:
+          type: string
+          enum:
+          - member
+          - tenant
+          title: Scope
+          default: member
+        secret:
+          anyOf:
+          - type: string
+            maxLength: 8192
+          - type: 'null'
+          title: Secret
+      type: object
+      required:
+      - connector_id
+      - name
+      title: ConnectionIn
+    ConnectionOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        connector_id:
+          type: string
+          title: Connector Id
+        name:
+          type: string
+          title: Name
+        scope:
+          type: string
+          enum:
+          - member
+          - tenant
+          title: Scope
+        owner_id:
+          type: string
+          title: Owner Id
+        status:
+          type: string
+          title: Status
+        external_account:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Account
+        granted_scopes:
+          items:
+            type: string
+          type: array
+          title: Granted Scopes
+        last_used_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Used At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        mine:
+          type: boolean
+          title: Mine
+      type: object
+      required:
+      - id
+      - connector_id
+      - name
+      - scope
+      - owner_id
+      - status
+      - external_account
+      - granted_scopes
+      - last_used_at
+      - created_at
+      - mine
+      title: ConnectionOut
+    ConnectionPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        status:
+          anyOf:
+          - type: string
+            enum:
+            - active
+            - suspended
+          - type: 'null'
+          title: Status
+      type: object
+      title: ConnectionPatch
+    ConnectorOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        cls:
+          type: string
+          title: Cls
+        auth:
+          type: string
+          title: Auth
+        identity:
+          type: string
+          title: Identity
+        tools:
+          items:
+            type: string
+          type: array
+          title: Tools
+        installed:
+          type: boolean
+          title: Installed
+        enabled:
+          type: boolean
+          title: Enabled
+        allowed_tools:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Allowed Tools
+      type: object
+      required:
+      - id
+      - name
+      - cls
+      - auth
+      - identity
+      - tools
+      - installed
+      - enabled
+      - allowed_tools
+      title: ConnectorOut
     DecisionIn:
       properties:
         decision:
@@ -2823,6 +3283,26 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    InstallationIn:
+      properties:
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+        allowed_tools:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Allowed Tools
+        config:
+          additionalProperties:
+            type: string
+          type: object
+          title: Config
+      type: object
+      title: InstallationIn
     InvitationOut:
       properties:
         id:
@@ -3090,6 +3570,31 @@ components:
       - id
       - label
       title: ModelOut
+    PolicyRule:
+      properties:
+        principal_type:
+          type: string
+          enum:
+          - role
+          - membership
+          - project
+          - agent
+          - tenant
+          title: Principal Type
+        principal_ref:
+          type: string
+          title: Principal Ref
+          default: ''
+        allowed_tools:
+          items:
+            type: string
+          type: array
+          title: Allowed Tools
+      type: object
+      required:
+      - principal_type
+      - allowed_tools
+      title: PolicyRule
     PreferencesIn:
       properties:
         last_tenant_id:
@@ -3304,6 +3809,17 @@ components:
       - ecosystems
       - updated_at
       title: ScenarioOut
+    SecretIn:
+      properties:
+        secret:
+          type: string
+          maxLength: 8192
+          minLength: 1
+          title: Secret
+      type: object
+      required:
+      - secret
+      title: SecretIn
     SessionOut:
       properties:
         id:

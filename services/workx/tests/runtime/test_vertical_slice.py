@@ -73,7 +73,7 @@ class CapturingProvider(LocalProcessProvider):
 
 
 @pytest.fixture(scope="package")
-def stack(test_database: ProvisionedDatabase, db: Database, objects_dir: Path) -> Iterator[Stack]:
+def stack(test_database: ProvisionedDatabase, db: Database, broker_db: Database, objects_dir: Path) -> Iterator[Stack]:
     base = {
         "environment": Environment.TEST,
         "database_url": test_database.app_url,
@@ -87,8 +87,8 @@ def stack(test_database: ProvisionedDatabase, db: Database, objects_dir: Path) -
         )
     )  # type: ignore[arg-type]
     tool_gw = Served(
-        create_tool_gateway_app(ToolGatewaySettings(**base, crm_base_url=crm.url, crm_api_key=CRM_KEY), db)
-    )  # type: ignore[arg-type]
+        create_tool_gateway_app(ToolGatewaySettings(**base, crm_base_url=crm.url), broker_db)  # type: ignore[arg-type]
+    )
     captured: list[dict[str, str]] = []
     settings = OrchestratorSettings(
         **base,
@@ -127,12 +127,30 @@ class User:
         return dict(self.client.get(f"{self.t}/tasks/{task_id}").json())
 
 
+def connect_crm(client: TestClient, tenant: str) -> str:
+    """Install the CRM connector, store its key as an org-shared connection (via the broker) and let members use it."""
+    base = f"/api/v1/tenants/{tenant}"
+    assert client.put(f"{base}/connectors/crm/installation", json={"enabled": True}).status_code == 200
+    created = client.post(
+        f"{base}/connections", json={"connector_id": "crm", "name": "Team CRM", "scope": "tenant", "secret": CRM_KEY}
+    )
+    assert created.status_code == 201, created.text
+    connection = created.json()["id"]
+    tools = ["crm_list_accounts", "crm_create_note", "crm_send_email"]
+    policy = client.put(
+        f"{base}/connections/{connection}/usage-policy", json=[{"principal_type": "tenant", "allowed_tools": tools}]
+    )
+    assert policy.status_code == 200, policy.text
+    return str(connection)
+
+
 @pytest.fixture
 def user(new_client: Callable[[], TestClient], oidc: TestClient) -> User:
     client = new_client()
     me = sign_in(client, oidc)
     org = create_org(client, "Runtime Org")
     agent = client.get(f"/api/v1/tenants/{org['id']}/agents").json()[0]["id"]
+    connect_crm(client, org["id"])
     return User(client, me, org["id"], agent)
 
 
@@ -345,3 +363,33 @@ def test_ticket_scope_ssrf_and_model_pinning(stack: Stack, user: User) -> None:
         e for e in user.client.get(f"{user.t}/tasks/{blocked['id']}/events").json() if e["type"] == "tool.finished"
     ]
     assert tool_events[0]["payload"]["is_error"] is True
+
+
+def test_revoked_connection_stops_tool_use_in_active_task(stack: Stack, user: User) -> None:
+    emails_before = stack.crm_stats()["emails"]
+    task = user.task("SCENARIO:approval email the renewal")
+    started = start_one(stack, task["id"])
+    thread, result = run_background(stack, started)
+    wait_for(lambda: user.get(task["id"])["status"] == "awaiting_approval")
+    [connection] = user.client.get(f"{user.t}/connections").json()
+    assert user.client.delete(f"{user.t}/connections/{connection['id']}").status_code == 204
+    # The attempt's tool ticket named the connection, so it stops working at once.
+    blocked = httpx.post(
+        f"{stack.tool_gw.url}/mcp/{started.spec['attempt_id']}",
+        headers={"Authorization": f"Bearer {started.tool_ticket}"},
+        json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+    )
+    assert blocked.status_code == 401
+    [approval] = user.client.get(f"{user.t}/tasks/{task['id']}/approvals").json()
+    user.client.post(f"{user.t}/tasks/{task['id']}/approvals/{approval['id']}/decision", json={"decision": "approve"})
+    thread.join(timeout=40)
+    # The approved call fails instead of sending; the model sees a tool error and finishes its answer.
+    finished = [
+        e["payload"]
+        for e in user.client.get(f"{user.t}/tasks/{task['id']}/events").json()
+        if e["type"] == "tool.finished"
+    ]
+    assert finished == [
+        {"tool": "crm_send_email", "is_error": True, "tool_use_id": finished[0]["tool_use_id"], "deduplicated": False}
+    ]
+    assert result.get("status") == "succeeded" and stack.crm_stats()["emails"] == emails_before

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+import uuid
 from datetime import timedelta
 from typing import Any
 
@@ -30,9 +31,13 @@ from workx.core.errors import ApiError
 from workx.core.orm import utcnow
 from workx.core.redaction import redact
 from workx.core.settings import ToolGatewaySettings
+from workx.domains.connections import catalog
+from workx.domains.connections.catalog import TOOL_CONNECTOR
+from workx.domains.connections.models import Connection, Credential
 from workx.domains.runtime.models import Approval, ToolOperation
 from workx.domains.usage import service as usage
 from workx.trusted.broker import tickets
+from workx.trusted.broker.app import vault_for
 from workx.trusted.tool_gateway.tools import REGISTRY, Tool, ToolFailure
 
 PROTOCOL_VERSION = "2025-06-18"
@@ -69,8 +74,10 @@ def create_tool_gateway_app(
     settings: ToolGatewaySettings | None = None, db: Database | None = None, *, http: httpx.Client | None = None
 ) -> FastAPI:
     settings = settings or ToolGatewaySettings()
-    db = db or Database.connect(settings.database_url)
+    # Runs as workx_broker: the gateway decrypts connection credentials per call (trusted zone).
+    db = db or Database.connect(settings.broker_database_url)
     client = http or httpx.Client(timeout=30)
+    vault = vault_for(settings)
     app = FastAPI(title="WorkX Tool Gateway", docs_url=None, redoc_url=None, openapi_url=None)
 
     def lease_for(request: Request, attempt_external: str) -> tickets.Lease:
@@ -125,8 +132,46 @@ def create_tool_gateway_app(
             },
         )
 
+    def credential_for(lease: tickets.Lease, tool: Tool) -> tuple[str | None, dict[str, Any] | None]:
+        """(secret, None) when usable; (None, MCP error result) otherwise. Checked on every call (Seq 4, Seq 8)."""
+        connector = catalog.get(TOOL_CONNECTOR.get(tool.name, ""))
+        if connector is None or connector.auth == "none":
+            return None, None
+        connection_ref = (lease.scopes.get("connections") or {}).get(tool.name)
+        if not connection_ref:
+            return None, _text_result(
+                "This tool has no connection for this task.", error=True, structured={"code": "TOOL_NOT_ALLOWED"}
+            )
+        with db.transaction(tenant_id=lease.tenant_id) as session:
+            connection = session.get(Connection, uuid.UUID(connection_ref))
+            epoch = (lease.scopes.get("epochs") or {}).get(connection_ref)
+            if connection is None or connection.status != "active" or connection.authz_epoch != epoch:
+                code = "NEEDS_AUTH" if connector.identity == "user" else "CONNECTION_UNAVAILABLE"
+                return None, _text_result(
+                    "The connection for this tool is no longer available.", error=True, structured={"code": code}
+                )
+            kind = "api_key" if connector.auth == "api_key" else "oauth_access"
+            credential = session.execute(
+                select(Credential).where(Credential.connection_id == connection.id, Credential.kind == kind)
+            ).scalar_one_or_none()
+            if credential is None:
+                return None, _text_result(
+                    "The connection has no credential.", error=True, structured={"code": "NEEDS_AUTH"}
+                )
+            try:
+                secret, _ = vault.read(session, credential)
+            except ApiError:
+                return None, _text_result(
+                    "The connection has no usable credential.", error=True, structured={"code": "NEEDS_AUTH"}
+                )
+            connection.last_used_at = utcnow()
+            return secret, None
+
     def execute(lease: tickets.Lease, tool: Tool, args: dict[str, Any]) -> dict[str, Any]:
         clean = {k: v for k, v in args.items() if not k.startswith("_")}
+        secret, refused = credential_for(lease, tool)
+        if refused is not None:
+            return refused
         key = operation_key(lease.task_id, tool, clean)
         if tool.effect != "read":
             with db.transaction(tenant_id=lease.tenant_id) as session:
@@ -166,7 +211,7 @@ def create_tool_gateway_app(
                             structured={"code": "OPERATION_IN_DOUBT"},
                         )
         try:
-            outcome = redact(tool.run(settings, client, clean))
+            outcome = redact(tool.run(settings, client, clean, secret))
             text = json.dumps(outcome, ensure_ascii=False)
             if len(text) > settings.max_result_chars:
                 outcome = {"truncated": True, "text": text[: settings.max_result_chars]}

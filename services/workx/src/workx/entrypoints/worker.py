@@ -8,8 +8,11 @@ import socket
 import time
 from datetime import UTC, datetime
 
+import httpx
+
 from workx.core.db import Database
 from workx.core.settings import ApiSettings
+from workx.domains.connections.broker_client import BrokerClient
 from workx.platform import jobs, mail
 
 log = logging.getLogger("workx.worker")
@@ -18,6 +21,7 @@ RECONCILE_EVERY_MINUTES = 5
 
 def load_handlers() -> None:
     """Importing handler modules registers them. Each phase adds its modules here."""
+    import workx.domains.connections.jobs
     import workx.domains.runtime.jobs
     import workx.domains.tenancy.jobs  # noqa: F401
 
@@ -28,7 +32,12 @@ def build_context(settings: ApiSettings | None = None, db: Database | None = Non
     return jobs.JobContext(
         db=db or Database.connect(settings.database_url),
         settings=settings,
-        services={"mailer": mail.from_url(settings.mail_url, settings.mail_from)},
+        services={
+            "mailer": mail.from_url(settings.mail_url, settings.mail_from),
+            "broker": BrokerClient(
+                settings.broker_url, settings.broker_token.get_secret_value(), httpx.Client(timeout=15)
+            ),
+        },
     )
 
 

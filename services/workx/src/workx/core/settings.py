@@ -69,6 +69,8 @@ class ApiSettings(BaseWorkxSettings):
     mail_url: str = "log"
     # Recent sign-in required for sensitive actions such as ownership transfer (Part 10 §3).
     reauth_window_minutes: int = 10
+    broker_url: str = "http://127.0.0.1:8220"
+    broker_token: SecretStr = SecretStr("workx-dev-broker-token")
     # SSE streams re-check session and membership this often (B-02 requires revocation within 60 s).
     sse_revalidate_seconds: float = 30.0
     session_sliding_days: int = 7
@@ -86,6 +88,27 @@ class ApiSettings(BaseWorkxSettings):
         return self
 
 
+class TrustedSettings(BaseWorkxSettings):
+    """Shared by the broker and the gateways: the only processes that may decrypt secrets."""
+
+    # Connect as workx_broker (secret tables). Never configure the API, worker or orchestrator with this role.
+    broker_database_url: str = "postgresql+psycopg://workx_broker:workx_broker_dev@127.0.0.1:54329/workx"
+    # "local" (development; key from WORKX_LOCAL_MASTER_KEY), "openbao:<https url>?mount=transit" or "awskms:<key arn>".
+    key_provider: str = "local"
+    local_master_key: SecretStr = SecretStr("")
+    openbao_token: SecretStr = SecretStr("")
+    # Shared secret for internal calls from the API to the broker (mTLS in production deployments).
+    broker_token: SecretStr = SecretStr("workx-dev-broker-token")
+
+    @model_validator(mode="after")
+    def _guard_keys(self) -> TrustedSettings:
+        if self.is_production and self.key_provider == "local" and len(self.local_master_key) < 32:
+            raise ValueError(
+                "Set WORKX_KEY_PROVIDER (openbao/awskms) or a 32+ character WORKX_LOCAL_MASTER_KEY in production"
+            )
+        return self
+
+
 class ModelGatewaySettings(BaseWorkxSettings):
     """Only this process holds the Anthropic key (decision 7: no raw model key in the sandbox)."""
 
@@ -94,10 +117,8 @@ class ModelGatewaySettings(BaseWorkxSettings):
     upstream_timeout_seconds: float = 600.0
 
 
-class ToolGatewaySettings(BaseWorkxSettings):
-    # Platform-operated test CRM connector (class A, Part 6). Real tenant connectors resolve via the broker (P-07).
+class ToolGatewaySettings(TrustedSettings):
     crm_base_url: str = "http://127.0.0.1:8300"
-    crm_api_key: SecretStr = SecretStr("")
     approval_ttl_minutes: int = 10
     max_result_chars: int = 50_000
     web_fetch_max_bytes: int = 2_000_000

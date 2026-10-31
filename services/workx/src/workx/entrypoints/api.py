@@ -19,6 +19,8 @@ from workx.core.settings import ApiSettings
 from workx.domains.agents import api as agents_api
 from workx.domains.artifacts import api as artifacts_api
 from workx.domains.audit import api as audit_api
+from workx.domains.connections import api as connections_api
+from workx.domains.connections.broker_client import BrokerClient
 from workx.domains.identity import api as identity_api
 from workx.domains.identity.oidc import OidcProvider
 from workx.domains.resources import api as resources_api
@@ -45,7 +47,11 @@ def _problem(error: ApiError, request: Request) -> JSONResponse:
 
 
 def create_app(
-    settings: ApiSettings | None = None, db: Database | None = None, *, oidc_http: httpx.Client | None = None
+    settings: ApiSettings | None = None,
+    db: Database | None = None,
+    *,
+    oidc_http: httpx.Client | None = None,
+    broker_http: httpx.Client | None = None,
 ) -> FastAPI:
     settings = settings or ApiSettings()
     db = db or Database.connect(settings.database_url)
@@ -59,6 +65,9 @@ def create_app(
     state = AppState(settings=settings, db=db)
     state.services["oidc"] = OidcProvider(settings.oidc, oidc_http or httpx.Client(follow_redirects=False))
     state.services["objects"] = storage.from_url(settings.object_store_url)
+    state.services["broker"] = BrokerClient(
+        settings.broker_url, settings.broker_token.get_secret_value(), broker_http or httpx.Client(timeout=15)
+    )
     app.state.workx = state
 
     @app.middleware("http")
@@ -130,4 +139,5 @@ def domain_routers() -> list[APIRouter]:
         stream_api.router,
         runtime_api.router,
         artifacts_api.router,
+        connections_api.router,
     ]
