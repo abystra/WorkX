@@ -7,6 +7,7 @@
 # Claude Agent SDK engine; otherwise a scripted development model answers (clearly fake) via the messages engine.
 # Test CRM: connect it in the app (Settings › Connections) with the key "dev-crm-key" (or WORKX_DEV_CRM_KEY).
 # Test OAuth + remote MCP provider (Notes): connect it in the app; the connector is installed pointing at :8310.
+# Test chat platforms (Feishu/WeCom APIs) on :8320; the broker sends channel replies there.
 # Logs and pid files: .local/run/. Requires scripts/dev/pg.sh start and a migrated database.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -30,6 +31,7 @@ case "${1:-start}" in
     export WORKX_API_BASE_URL=$WEB WORKX_PUBLIC_BASE_URL=$WEB WORKX_MAIL_URL="file:$RUN/mail"
     uv run workx db upgrade
     export WORKX_CRM_BASE_URL=http://127.0.0.1:8300 WORKX_BROKER_URL=http://127.0.0.1:8220
+    export WORKX_FEISHU_BASE_URL=http://127.0.0.1:8320 WORKX_WECOM_BASE_URL=http://127.0.0.1:8320
     export WORKX_MODEL_GATEWAY_URL=http://127.0.0.1:8200 WORKX_TOOL_GATEWAY_URL=http://127.0.0.1:8210
     if [ -n "${WORKX_ANTHROPIC_API_KEY:-}" ] && [ -n "${WORKX_MODEL_TIERS:-}" ]; then
       export WORKX_RUNNER_ENGINE=claude-agent-sdk
@@ -42,6 +44,7 @@ case "${1:-start}" in
     start_one dev-oidc uv run workx dev-oidc --port 8100
     start_one dev-crm uv run workx dev-crm --port 8300
     start_one dev-notes uv run workx dev-notes --port 8310
+    start_one dev-channels uv run workx dev-channels --port 8320
     start_one broker uv run workx broker --port 8220
     start_one api uv run workx api --port 8000
     start_one worker uv run workx worker
@@ -52,7 +55,7 @@ case "${1:-start}" in
     echo "Open $WEB"
     ;;
   stop)
-    for name in web orchestrator tool-gateway model-gateway worker api broker dev-notes dev-crm dev-oidc dev-model; do
+    for name in web orchestrator tool-gateway model-gateway worker api broker dev-channels dev-notes dev-crm dev-oidc dev-model; do
       if [ -f "$RUN/$name.pid" ]; then
         kill -- "-$(cat "$RUN/$name.pid")" 2>/dev/null || kill "$(cat "$RUN/$name.pid")" 2>/dev/null || true
         rm -f "$RUN/$name.pid"
@@ -61,7 +64,7 @@ case "${1:-start}" in
     done
     ;;
   status)
-    for name in dev-oidc dev-model dev-crm dev-notes broker api worker model-gateway tool-gateway orchestrator web; do
+    for name in dev-oidc dev-model dev-crm dev-notes dev-channels broker api worker model-gateway tool-gateway orchestrator web; do
       if [ -f "$RUN/$name.pid" ] && kill -0 "$(cat "$RUN/$name.pid")" 2>/dev/null; then echo "$name running"; else echo "$name stopped"; fi
     done
     ;;

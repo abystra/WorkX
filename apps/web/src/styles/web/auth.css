@@ -23,3 +23,4 @@
 .wx-auth-footer{margin-top:18px;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
 .wx-auth-footer .wx-conn-languages button{font-size:11px;padding:3px 7px}
 .wx-auth-tagline{color:var(--muted);font-size:13px;margin:0 0 18px;text-align:center}
+.wx-eco-callback, .wx-link-code { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 12px; word-break: break-all; user-select: all; }

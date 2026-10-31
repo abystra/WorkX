@@ -32,8 +32,7 @@ describe('HTTP mapping (view models ↔ control-plane API)', () => {
   });
 
   it('serves later-phase endpoints locally instead of calling missing routes', () => {
-    expect(plan('GET', '/tenants/ten_1/channel-runs', undefined).local).toEqual([]);
-    expect(plan('POST', '/tenants/ten_1/channel-bindings', {}).local).toBeInstanceOf(Error);
+    expect(plan('POST', '/tenants/ten_1/channel-messages', {}).local).toBeInstanceOf(Error);
     expect(plan('GET', '/tenants/ten_1/artifacts', undefined).path).toBe('/tenants/ten_1/files?include_content=true');
   });
 
@@ -47,6 +46,17 @@ describe('HTTP mapping (view models ↔ control-plane API)', () => {
       { id: 'con_1', name: 'CRM', connector_id: 'crm', connector_name: 'CRM', auth: 'api_key', scope: 'tenant', owner_id: 'mem_1', status: 'suspended', agent_ids: ['agt_1'] },
     ]) as Record<string, unknown>[];
     expect(view).toMatchObject({ provider: 'api', authMode: 'static', ownerScope: 'space', enabled: false, agentIds: ['agt_1'], connectorName: 'CRM' });
+  });
+
+  it('maps channel bindings, their connection setup and runs', () => {
+    const create = plan('POST', '/tenants/ten_1/channel-bindings', { platform: 'feishu', method: 'feishu-app-bot', name: 'Bot', assignedAgent: 'agt_1', capabilities: ['message-receive'] });
+    expect(create.body).toEqual({ name: 'Bot', agent_id: 'agt_1', capabilities: ['message-receive'], platform: 'feishu', method: 'feishu-bot', config: {} });
+    const edit = plan('POST', '/tenants/ten_1/channel-bindings', { id: 'chb_1', name: 'Bot 2', assignedAgent: 'agt_1', capabilities: [] });
+    expect([edit.method, edit.path]).toEqual(['PATCH', '/tenants/ten_1/channel-bindings/chb_1']);
+    const setup = plan('PUT', '/tenants/ten_1/channel-bindings/chb_1/connection', { platform: 'wecom', draft: { parameters: { corpId: 'ww1', agentId: '1000002', appSecret: 's', token: 't', encodingAESKey: 'k' } } });
+    expect(setup.body).toEqual({ config: { corp_id: 'ww1', agent_id: '1000002' }, secrets: { secret: 's', token: 't', encoding_aes_key: 'k' } });
+    const [binding] = plan('GET', '/tenants/ten_1/channel-bindings', undefined).out([{ id: 'chb_1', name: 'Bot', platform: 'feishu', method: 'feishu-bot', agent_id: 'agt_1', capabilities: ['message-receive'], enabled: true, revision: 1, config: { app_id: 'cli' }, configured: true }]) as Record<string, any>[];
+    expect(binding).toMatchObject({ method: 'feishu-app-bot', assignedAgent: 'agt_1', connection: { verified: true, parameters: { appId: 'cli' } } });
   });
 
   it('maps a task response into the view model', () => {

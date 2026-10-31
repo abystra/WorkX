@@ -4,6 +4,7 @@
 // Covers J1 (sign-in through OIDC, personal workspace), P-07 (connect the test CRM with an API key), a real task
 // run, J2 (create organization, invite by email, accept
 // from the emailed link as the invitee) and J3 (switch workspaces; content stays per workspace).
+import { createCipheriv, createHash, randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,6 +18,7 @@ const expect = (name, ok, detail = '') => { total++; if (ok) passed++; console.l
 const stamp = Date.now().toString(36);
 
 const browser = await chromium.launch();
+const waitUntil = async (check, timeout) => { const end = Date.now() + timeout; while (Date.now() < end) { if (await check()) return true; await new Promise(r => setTimeout(r, 500)); } throw new Error('timed out waiting'); };
 
 async function person(email, name) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-US' });
@@ -167,6 +169,56 @@ expect('J2 invitee signs in, accepts and lands in the organization', bob.page.ur
 await bob.page.waitForSelector('.app-layout');
 await bob.page.waitForTimeout(1000);
 expect('J2 invitee sees the shared starter workmate', (await bob.page.textContent('body')).includes('My Workmate'));
+
+// ---- J6: a Feishu bot bound to the workmate; signed + encrypted callbacks; linking; reply delivered.
+const platformsUrl = args.platforms || 'http://127.0.0.1:8320';
+const apiUrl = args.api || 'http://127.0.0.1:8000';
+const fs = { appId: `cli_${stamp}`, appSecret: 'e2e-app-secret', encryptKey: 'e2e-encrypt-key', verificationToken: 'e2e-verify' };
+await fetch(`${platformsUrl}/_apps`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ [fs.appId]: fs.appSecret }) });
+const binding = await alex.page.evaluate(async ({ orgId, fs }) => {
+  const csrf = (await (await fetch('/api/v1/me')).json()).csrf_token;
+  const headers = { 'content-type': 'application/json', 'x-workx-csrf': csrf };
+  const agents = await (await fetch(`/api/v1/tenants/${orgId}/agents`)).json();
+  const created = await (await fetch(`/api/v1/tenants/${orgId}/channel-bindings`, { method: 'POST', headers, body: JSON.stringify({
+    platform: 'feishu', method: 'feishu-bot', name: 'Team bot', agent_id: agents[0].id, capabilities: ['message-receive', 'message-reply'],
+    config: { app_id: fs.appId }, secrets: { app_secret: fs.appSecret, encrypt_key: fs.encryptKey, verification_token: fs.verificationToken } }) })).json();
+  return created;
+}, { orgId, fs });
+expect('J6 binding created with a callback URL', Boolean(binding.webhook_url), JSON.stringify(binding));
+const feishuPost = async (event) => {
+  const key = createHash('sha256').update(fs.encryptKey).digest(), iv = randomBytes(16);
+  const cipher = createCipheriv('aes-256-cbc', key, iv);
+  const encrypted = Buffer.concat([iv, cipher.update(JSON.stringify(event)), cipher.final()]).toString('base64');
+  const body = JSON.stringify({ encrypt: encrypted }), ts = String(Math.floor(Date.now() / 1000)), nonce = randomBytes(6).toString('hex');
+  const signature = createHash('sha256').update(ts + nonce + fs.encryptKey + body).digest('hex');
+  const path = binding.webhook_url.slice(binding.webhook_url.indexOf('/api/v1'));
+  return fetch(apiUrl + path, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-lark-request-timestamp': ts, 'x-lark-request-nonce': nonce, 'x-lark-signature': signature } });
+};
+const message = (text, id) => ({ schema: '2.0', header: { event_id: id, event_type: 'im.message.receive_v1', token: fs.verificationToken, tenant_key: 'tk_e2e' },
+  event: { sender: { sender_id: { open_id: 'ou_alex' }, sender_type: 'user' }, message: { message_id: `om_${id}`, chat_id: 'oc_e2e', chat_type: 'p2p', message_type: 'text', content: JSON.stringify({ text }) } } });
+const sentTexts = async () => (await (await fetch(`${platformsUrl}/_sent`)).json()).map(m => JSON.parse(m.content || '{}').text || m.content);
+expect('J6 signed callback accepted', (await feishuPost(message('hello', `e-${stamp}-1`))).status === 200);
+await waitUntil(async () => (await sentTexts()).some(t => String(t).includes("don't know who you are")), 20000);
+expect('J6 unlinked sender is told how to link (no task)', true);
+await alex.page.goto(`${base}/t/${orgId}/ecosystem`);
+await alex.page.waitForTimeout(800);
+await alex.page.locator('[data-action="eco-preview"]').first().click();
+await alex.page.click('[data-action="channel-link-account"]');
+const code = (await alex.page.getAttribute('.wx-link-code', 'data-code', { timeout: 10000 }));
+expect('J6 the member gets a one-time link code in the app', /^[A-Z0-9]{8}$/.test(code || ''), code);
+await alex.page.keyboard.press('Escape');
+await feishuPost(message(`link ${code}`, `e-${stamp}-2`));
+await waitUntil(async () => (await sentTexts()).some(t => String(t).startsWith('Linked')), 20000);
+await feishuPost(message('Summarize this week in three bullets', `e-${stamp}-3`));
+await waitUntil(async () => (await sentTexts()).some(t => String(t).includes('/task/tsk_')), 90000);
+expect('J6 the linked member\'s request ran and the answer was delivered to the chat', true);
+await feishuPost(message('Summarize this week in three bullets', `e-${stamp}-3`));
+await alex.page.goto(`${base}/t/${orgId}/inbox`);
+await alex.page.waitForTimeout(1500);
+const inbox = await alex.page.textContent('body');
+expect('J6 the channel workbench lists the real runs with their delivery state', inbox.includes('Delivered') && inbox.includes('Summarize this week'), inbox.slice(0, 300));
+const runsNow = await alex.page.evaluate(async t => (await (await fetch(`/api/v1/tenants/${t}/channel-runs`)).json()), orgId);
+expect('J6 a replayed platform event creates no second task', runsNow.filter(r => r.event_id === `e-${stamp}-3`).length === 1 && runsNow.find(r => r.event_id === `e-${stamp}-3`).replay_count === 1);
 
 // ---- J3: content stays per workspace; Alex's personal task is not visible to Bob anywhere
 const bobBody = await bob.page.textContent('body');

@@ -145,6 +145,51 @@ export const mapConnection = (c: any) => ({
   status: c.status === 'active' ? 'active' : 'needs_auth', enabled: c.status !== 'suspended', usageClass: 'tool',
 });
 
+/** Channel binding methods: UI (prototype) ids ↔ API ids. Other UI methods have no backend yet. */
+const METHOD_OUT: Record<string, string> = { 'feishu-bot': 'feishu-app-bot', 'wecom-app': 'wecom-app' };
+const METHOD_IN: Record<string, string> = { 'feishu-app-bot': 'feishu-bot', 'wecom-app': 'wecom-app' };
+const PARAM_OUT: Record<string, string> = { app_id: 'appId', corp_id: 'corpId', agent_id: 'agentId' };
+
+export const mapBinding = (b: any) => {
+  const view: any = {
+    id: b.id, name: b.name, platform: b.platform, method: METHOD_OUT[b.method] || b.method, assignedAgent: b.agent_id,
+    capabilities: b.capabilities || [], enabled: b.enabled, configured: true, revision: b.revision,
+    webhookUrl: b.webhook_url || undefined, credentialsSet: b.configured,
+  };
+  if (b.configured) {
+    // Real credentials stored by the broker stand in for the prototype's simulated connection test.
+    view.connection = {
+      signature: JSON.stringify([view.platform, view.method, '', view.assignedAgent, [...view.capabilities].sort()]),
+      parameters: Object.fromEntries(Object.entries(b.config || {}).map(([k, v]) => [PARAM_OUT[k] || k, v])),
+      verified: true,
+    };
+  }
+  return view;
+};
+
+/** Connection dialog parameters → non-secret config and broker secrets. */
+export function connectionBody(platform: string, params: Record<string, string>) {
+  const config: Record<string, string> = {}, secrets: Record<string, string> = {};
+  const put = (target: Record<string, string>, key: string, value?: string) => { if (value) target[key] = String(value).trim(); };
+  put(config, platform === 'feishu' ? 'app_id' : 'corp_id', platform === 'feishu' ? params.appId : params.corpId);
+  if (platform === 'wecom') put(config, 'agent_id', params.agentId);
+  put(secrets, platform === 'feishu' ? 'app_secret' : 'secret', params.appSecret);
+  put(secrets, 'verification_token', params.verificationToken);
+  put(secrets, 'encrypt_key', params.encryptKey);
+  put(secrets, 'token', params.token);
+  put(secrets, 'encoding_aes_key', params.encodingAESKey);
+  return { config, secrets };
+}
+
+export const mapChannelRun = (r: any) => ({
+  id: r.id, taskId: r.task_id || '', bindingId: r.binding_id, bindingName: r.binding_name, platform: r.platform,
+  agentId: r.agent_id, agentName: r.agent_name, source: r.source, stage: r.stage, executionStatus: r.execution_status,
+  deliveryStatus: r.delivery_status, executionAttempts: r.task_id ? 1 : 0, deliveryAttempts: r.delivery_attempts,
+  errorKey: r.error_code ? `web.channel.error.${r.error_code}` : undefined,
+  reply: r.reply ? { text: r.reply.text, at: Date.parse(r.reply.at) } : undefined,
+  history: [], eventId: r.event_id, replayCount: r.replay_count,
+});
+
 export const mapApproval = (a: any) => ({ id: a.id, tool: a.tool, summary: a.summary, status: a.status, expiresAt: a.expires_at });
 
 export const mapProject = (p: any) => ({
@@ -213,7 +258,8 @@ function agentBody(b: any) {
 }
 
 const COLLECTIONS: Record<string, string> = { artifacts: 'files', library: 'files' };
-const LATER = /^\/tenants\/[^/]+\/(channel-bindings|channel-runs|channel-messages)(\/|$)/;
+// Simulated inbound messages exist only in the development adapter.
+const LATER = /^\/tenants\/[^/]+\/(channel-messages)(\/|$)/;
 
 /** Plans one UI call. Unknown paths pass through unchanged (snake_case bodies are the caller's responsibility). */
 export function plan(method: Method, path: string, body: any): Planned {
@@ -221,7 +267,7 @@ export function plan(method: Method, path: string, body: any): Planned {
   let match: RegExpExecArray | null;
 
   if (LATER.test(path)) {
-    // Channels (P-09) are not served by the API yet.
+    // The compose-a-test-message control belongs to the development adapter only.
     return method === 'GET' ? { method, path, out: identity, local: [] } : { method, path, out: identity, local: new Error('NOT_AVAILABLE') };
   }
   if (path === '/me') {
@@ -299,6 +345,22 @@ export function plan(method: Method, path: string, body: any): Planned {
     ? { method, path, out: (rows: any[]) => rows.map(mapKnowledgeSource) }
     : { method, path, body: { file_id: body.fileId }, out: mapKnowledgeSource };
   if ((match = t('agents/([^/]+)/knowledge'))) return { method, path, body: { source_ids: body.sourceIds || [] }, out: identity };
+
+  if ((match = t('channel-bindings'))) {
+    if (method === 'GET') return { method, path, out: (rows: any[]) => rows.map(mapBinding) };
+    const fields = { name: body.name, agent_id: body.assignedAgent, capabilities: body.capabilities || [] };
+    return body.id
+      ? { method: 'PATCH', path: `${path}/${body.id}`, body: fields, out: mapBinding }
+      : { method, path, body: { ...fields, platform: body.platform, method: METHOD_IN[body.method] || body.method, config: {} }, out: mapBinding };
+  }
+  if ((match = t('channel-bindings/([^/]+)/connection'))) {
+    const params = body?.draft?.parameters || {};
+    return { method, path, body: connectionBody(String(body?.platform || (params.corpId ? 'wecom' : 'feishu')), params), out: mapBinding };
+  }
+  if ((match = t('channel-bindings/([^/]+)/link-code'))) return { method, path, out: identity };
+  if ((match = t('channel-bindings/([^/]+)'))) return { method, path, body, out: method === 'DELETE' ? identity : mapBinding };
+  if ((match = t('channel-runs'))) return { method, path, out: (rows: any[]) => rows.map(mapChannelRun), forbiddenAs: [] };
+  if ((match = t('channel-runs/([^/]+)/([a-z-]+)'))) return { method, path, out: identity };
 
   if ((match = t('connectors'))) return { method, path, out: identity };
   if ((match = t('connectors/([^/]+)/installation'))) return { method, path, body, out: identity };

@@ -2316,7 +2316,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConnectionIn'
+              $ref: '#/components/schemas/workx__domains__connections__api__ConnectionIn'
       responses:
         '201':
           description: Successful Response
@@ -3001,6 +3001,44 @@ paths:
       responses:
         '204':
           description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-bindings/{binding_id}/connection:
+    put:
+      tags:
+      - channels
+      summary: 'Connection setup: non-secret settings on the binding, secrets to the broker'
+      operationId: put_connection_api_v1_tenants__tenant_id__channel_bindings__binding_id__connection_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: binding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Binding Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/workx__domains__channels__api__ConnectionIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingOut'
         '422':
           description: Validation Error
           content:
@@ -3820,33 +3858,6 @@ components:
       required:
       - secret
       title: ClientSecretIn
-    ConnectionIn:
-      properties:
-        connector_id:
-          type: string
-          title: Connector Id
-        name:
-          type: string
-          maxLength: 80
-          title: Name
-        scope:
-          type: string
-          enum:
-          - member
-          - tenant
-          title: Scope
-          default: member
-        secret:
-          anyOf:
-          - type: string
-            maxLength: 8192
-          - type: 'null'
-          title: Secret
-      type: object
-      required:
-      - connector_id
-      - name
-      title: ConnectionIn
     ConnectionOut:
       properties:
         id:
@@ -5501,3 +5512,44 @@ components:
       - completeness
       - created_at
       title: VersionOut
+    workx__domains__channels__api__ConnectionIn:
+      properties:
+        config:
+          additionalProperties:
+            type: string
+          type: object
+          title: Config
+        secrets:
+          additionalProperties:
+            type: string
+          type: object
+          title: Secrets
+      type: object
+      title: ConnectionIn
+    workx__domains__connections__api__ConnectionIn:
+      properties:
+        connector_id:
+          type: string
+          title: Connector Id
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        scope:
+          type: string
+          enum:
+          - member
+          - tenant
+          title: Scope
+          default: member
+        secret:
+          anyOf:
+          - type: string
+            maxLength: 8192
+          - type: 'null'
+          title: Secret
+      type: object
+      required:
+      - connector_id
+      - name
+      title: ConnectionIn

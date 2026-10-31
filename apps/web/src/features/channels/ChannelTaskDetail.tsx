@@ -2,7 +2,7 @@ import { api } from '@/api/client';
 import type { Task } from '@/api/contracts';
 import { useWs } from '@/app/workspace';
 import { platformBy } from '@/domain/ecosystem-model.js';
-import { channelBindingReady } from '@/domain/channel-rules';
+import { channelBindingReady, channelKey } from '@/domain/channel-rules';
 import { getLocale } from '@/i18n';
 import { Icon } from '@/ui/icons';
 import { useOverlay } from '@/ui/overlay';
@@ -51,8 +51,8 @@ export function ChannelTaskDetail({ task }: { task: Task }) {
       </div>
       <div className="wx-channel-message"><span>{t('channel.incoming')}</span><p>{source.message}</p></div>
       <div className="wx-channel-run-summary">
-        <span>{t('channel.executionLabel')}<strong>{t('channel.execution.' + run.executionStatus)}</strong></span>
-        <span>{t('channel.deliveryLabel')}<strong>{t('channel.delivery.' + run.deliveryStatus)}</strong></span>
+        <span>{t('channel.executionLabel')}<strong>{t(channelKey('execution', run.executionStatus))}</strong></span>
+        <span>{t('channel.deliveryLabel')}<strong>{t(channelKey('delivery', run.deliveryStatus))}</strong></span>
         <span>{t('channel.attempts', { execution: run.executionAttempts, delivery: run.deliveryAttempts })}</span>
       </div>
       {run.errorKey ? <div className="wx-channel-error" role="status">{t(run.errorKey)}</div> : null}

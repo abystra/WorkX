@@ -2,7 +2,7 @@ import { api } from '@/api/client';
 import type { ChannelRun } from '@/api/contracts';
 import { useWs } from '@/app/workspace';
 import { platformBy } from '@/domain/ecosystem-model.js';
-import { eligibleBindings, runIsActive, runNeedsAttention } from '@/domain/channel-rules';
+import { channelKey, eligibleBindings, runIsActive, runNeedsAttention } from '@/domain/channel-rules';
 import { useUi } from '@/state/ui';
 import { Icon } from '@/ui/icons';
 import { useOverlay } from '@/ui/overlay';
@@ -24,7 +24,7 @@ export function RunActions({ run }: { run: ChannelRun }) {
 
 export const RunStatus = ({ run }: { run: ChannelRun }) => {
   const { t } = useWs();
-  return <span className={`wx-channel-status is-${run.stage}`}>{t('channel.stage.' + run.stage)}</span>;
+  return <span className={`wx-channel-status is-${run.stage}`}>{t(channelKey('stage', run.stage))}</span>;
 };
 
 /** Channel workbench (prototype renderInbox). */
@@ -68,8 +68,8 @@ export function Inbox() {
               </div>
               <div className="wx-channel-row-bottom">
                 <span>{t('channel.assigned', { name: run.agentName })}</span>
-                <span>{t('channel.executionLabel')} {t('channel.execution.' + run.executionStatus)}</span>
-                <span>{t('channel.deliveryLabel')} {t('channel.delivery.' + run.deliveryStatus)}</span>
+                <span>{t('channel.executionLabel')} {t(channelKey('execution', run.executionStatus))}</span>
+                <span>{t('channel.deliveryLabel')} {t(channelKey('delivery', run.deliveryStatus))}</span>
                 <div><RunActions run={run} /><button type="button" className="btn" data-action="channel-open-task" data-id={run.id} onClick={() => ctx.nav('task', run.taskId)}>{t('channel.viewTask')}</button></div>
               </div>
             </article>

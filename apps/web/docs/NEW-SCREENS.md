@@ -105,6 +105,14 @@ The connection card shows "Connected" for active connections and a rule line (`w
 
 **For review:** whether the auth method should be shown at all when it is fixed by the connector; whether connector installation belongs in this dialog or in a separate admin screen.
 
+## 2d. Channels on the real API (P-09)
+
+- **Binding preview:** for admins, a note "Callback URL (set it in the platform console)" with the URL in monospace (selectable). For dialogue bindings, a secondary **Link my chat account** button opens a small dialog with the message to send to the bot (`link ABCD2345`, monospace).
+- **Workbench vocabulary:** new stage tags "Account not linked", "Not addressed to the bot", "Account linked", "Not accepted"; execution "Not started", "Needs authorization"; delivery "No reply", "Queued", "Unconfirmed", "Blocked". They reuse the existing tag styles. Error lines explain the reason (for example a reply held back because the bot changed after the message arrived).
+- The "Simulate incoming message" control stays development-adapter only.
+
+**For review:** whether linking belongs in Settings (per member) rather than in each binding's preview.
+
 ## 3. Changed wording (approved, decision 31 / Q-17, D-02)
 
 Source: `src/i18n/overrides.ts`. Same position, similar length. Prototype-only claims (browser storage, "this prototype") are replaced:

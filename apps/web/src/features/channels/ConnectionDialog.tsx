@@ -255,7 +255,7 @@ ConnectionDialog.Footer = function Footer() {
     const s = guard();
     if (!s) return;
     // The server keeps only non-secret fields, confirmations and the simulated result (sanitizeConnection).
-    await ctx.run(() => api.call('PUT', `/tenants/${ctx.tenantId}/channel-bindings/${binding.id}/connection`, { draft: s.draft, test: s.draft.test }), 'conn.saved');
+    await ctx.run(() => api.call('PUT', `/tenants/${ctx.tenantId}/channel-bindings/${binding.id}/connection`, { platform: binding.platform, draft: s.draft, test: s.draft.test }), 'conn.saved');
     cancel();
   };
   return (

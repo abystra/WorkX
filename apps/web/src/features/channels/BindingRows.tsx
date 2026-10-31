@@ -63,7 +63,7 @@ export function useOpenWizard() {
 }
 
 function PreviewDialog({ bindingId }: { bindingId: string }) {
-  const { t, ws } = useWs();
+  const { t, ws, runtime } = useWs();
   const binding: any = ws.bindings.find(b => b.id === bindingId);
   if (!binding) return null;
   const method = methodBy(binding.method), platform = platformBy(binding.platform), agent = ws.agents.find(a => a.id === binding.assignedAgent);
@@ -82,6 +82,9 @@ function PreviewDialog({ bindingId }: { bindingId: string }) {
       {flow ? <div className="wx-eco-preview-flow">{flow}</div> : null}
       <div className="wx-eco-preview-caps"><CapabilityTags binding={binding} /></div>
       <div className="wx-eco-form-note"><strong>{t(statusKey(binding, ws))}</strong><p>{t(!ready ? 'eco.reviewBeforePreview' : binding.enabled === false ? 'eco.pausedHint' : 'eco.previewLocalNote')}</p></div>
+      {!runtime.simulated && binding.webhookUrl ? (
+        <div className="wx-eco-form-note"><strong>{t('web.channel.callbackUrl')}</strong><p className="wx-eco-callback">{binding.webhookUrl}</p></div>
+      ) : null}
       <p className="wx-eco-form-footnote">{t('eco.authHint')}</p>
     </>
   );
@@ -94,9 +97,15 @@ function PreviewFooter({ bindingId }: { bindingId: string }) {
   const binding: any = ctx.ws.bindings.find(b => b.id === bindingId);
   if (!binding) return null;
   const ready = bindingIsReady(binding, ctx.ws), active = ready && binding.enabled !== false, kind = methodBy(binding.method)?.kind;
+  // Real API: a one-time code the member sends to the bot to link their chat account (never by display name).
+  const linkAccount = async () => {
+    const result = await ctx.run(() => api.call<{ code: string; instruction: string }>('POST', `/tenants/${ctx.tenantId}/channel-bindings/${binding.id}/link-code`));
+    if (result) overlay.modal(ctx.t('web.channel.linkTitle'), <div className="wx-eco-form-note"><p>{ctx.t('web.channel.linkBody')}</p><p className="wx-link-code" data-code={result.code}>link {result.code}</p></div>);
+  };
   return (
     <>
       <EcoButton action="close" label="eco.close" onClick={overlay.close} />
+      {!ctx.runtime.simulated && active && kind === 'dialogue' ? <EcoButton action="channel-link-account" label="web.channel.link" data-id={binding.id} onClick={() => void linkAccount()} /> : null}
       {!ready ? <EcoButton action="eco-edit" label="eco.editBinding" primary data-id={binding.id} onClick={() => openWizard({ binding })} />
         : active && kind === 'dialogue' ? <EcoButton action="eco-try-task" label="eco.tryTask" primary data-id={binding.id} onClick={() => ctx.nav('new', binding.assignedAgent)} /> : null}
     </>

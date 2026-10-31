@@ -249,6 +249,35 @@ def put_secrets(tenant_id: str, binding_id: str, body: SecretsIn, principal: Aut
     return Response(status_code=204)
 
 
+class ConnectionIn(BaseModel):
+    config: dict[str, str] = Field(default_factory=dict)
+    secrets: dict[str, str] = Field(default_factory=dict)
+
+
+@router.put(
+    "/tenants/{tenant_id}/channel-bindings/{binding_id}/connection",
+    summary="Connection setup: non-secret settings on the binding, secrets to the broker",
+)
+def put_connection(
+    tenant_id: str, binding_id: str, body: ConnectionIn, principal: Authenticated, state: State
+) -> BindingOut:
+    tid = tenant_uuid(tenant_id)
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid, write=True) as (session, actor):
+        _manager(actor)
+        binding = _binding(session, actor, binding_id, lock=True)
+        binding.config = {**binding.config, **_config(binding.platform, body.config)}
+        payload = {
+            "tenant_id": str(tid),
+            "binding_id": str(binding.id),
+            "actor_membership_id": str(actor.membership.id),
+        }
+    secrets_ = {k: v for k, v in body.secrets.items() if v}
+    if secrets_:
+        broker(state).channel_secrets({**payload, "values": secrets_})
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid) as (session, actor):
+        return _out(state, _binding(session, actor, binding_id), actor)
+
+
 class LinkCodeOut(BaseModel):
     code: str
     expires_at: datetime
