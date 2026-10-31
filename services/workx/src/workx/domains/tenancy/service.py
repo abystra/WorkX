@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 import secrets
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, text, update
@@ -12,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from workx.core import ids
-from workx.core.db import set_context
+from workx.core.db import Database, set_context
 from workx.core.errors import ApiError, conflict, forbidden, not_found, validation
 from workx.domains.audit import service as audit
 from workx.domains.tenancy.models import Department, Membership, Tenant
@@ -131,6 +133,18 @@ def enter(session: Session, *, user_id: uuid.UUID, tenant_id: uuid.UUID, lock_me
     if lock_membership:
         session.refresh(membership, with_for_update=True)
     return Actor(user_id=user_id, tenant=tenant, membership=membership)
+
+
+@contextmanager
+def tenant_scope(
+    db: Database, *, user_id: uuid.UUID, tenant_id: uuid.UUID, write: bool = False
+) -> Iterator[tuple[Session, Actor]]:
+    """One transaction in a verified tenant context: the standard entry for tenant-scoped routes."""
+    with db.transaction(principal_id=user_id) as session:
+        actor = enter(session, user_id=user_id, tenant_id=tenant_id)
+        if write:
+            require_writable(actor)
+        yield session, actor
 
 
 def require_writable(actor: Actor) -> None:

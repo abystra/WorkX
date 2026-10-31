@@ -67,6 +67,8 @@ class ApiSettings(BaseWorkxSettings):
     mail_url: str = "log"
     # Recent sign-in required for sensitive actions such as ownership transfer (Part 10 §3).
     reauth_window_minutes: int = 10
+    # SSE streams re-check session and membership this often (B-02 requires revocation within 60 s).
+    sse_revalidate_seconds: float = 30.0
     session_sliding_days: int = 7
     session_absolute_days: int = 30
     cors_origins: list[str] = Field(default_factory=list)

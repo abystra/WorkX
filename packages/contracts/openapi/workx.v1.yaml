@@ -665,6 +665,1224 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/models:
+    get:
+      tags:
+      - agents
+      summary: 'Model tiers (decision D-01: Claude tiers only)'
+      operationId: models_api_v1_models_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ModelOut'
+                type: array
+                title: Response Models Api V1 Models Get
+  /api/v1/skills:
+    get:
+      tags:
+      - agents
+      summary: Curated Skills catalog
+      operationId: skills_api_v1_skills_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SkillOut'
+                type: array
+                title: Response Skills Api V1 Skills Get
+  /api/v1/tenants/{tenant_id}/agents:
+    get:
+      tags:
+      - agents
+      summary: Workmates you own or that are shared with you
+      operationId: list_agents_api_v1_tenants__tenant_id__agents_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentOut'
+                title: Response List Agents Api V1 Tenants  Tenant Id  Agents Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - agents
+      summary: Create a workmate (publishes version 1)
+      operationId: create_agent_api_v1_tenants__tenant_id__agents_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/agents/{agent_id}:
+    get:
+      tags:
+      - agents
+      summary: Workmate detail
+      operationId: get_agent_api_v1_tenants__tenant_id__agents__agent_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - agents
+      summary: Edit a workmate (runtime changes publish a version)
+      operationId: patch_agent_api_v1_tenants__tenant_id__agents__agent_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - agents
+      summary: Delete a workmate
+      operationId: delete_agent_api_v1_tenants__tenant_id__agents__agent_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/agents/{agent_id}/versions:
+    get:
+      tags:
+      - agents
+      summary: Published versions (immutable)
+      operationId: versions_api_v1_tenants__tenant_id__agents__agent_id__versions_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Agent Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VersionOut'
+                title: Response Versions Api V1 Tenants  Tenant Id  Agents  Agent Id  Versions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/shared-agents:
+    get:
+      tags:
+      - agents
+      summary: Workmates shared with the whole organization
+      operationId: shared_agents_api_v1_tenants__tenant_id__shared_agents_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                title: Response Shared Agents Api V1 Tenants  Tenant Id  Shared Agents Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/projects:
+    get:
+      tags:
+      - resources
+      summary: Projects you own, belong to, or that are shared with you
+      operationId: list_projects_api_v1_tenants__tenant_id__projects_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProjectOut'
+                title: Response List Projects Api V1 Tenants  Tenant Id  Projects Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - resources
+      summary: Create a project
+      operationId: create_project_api_v1_tenants__tenant_id__projects_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/projects/{project_id}:
+    get:
+      tags:
+      - resources
+      summary: Project detail
+      operationId: get_project_api_v1_tenants__tenant_id__projects__project_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - resources
+      summary: Edit a project or its shared context
+      operationId: patch_project_api_v1_tenants__tenant_id__projects__project_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - resources
+      summary: Delete a project
+      operationId: delete_project_api_v1_tenants__tenant_id__projects__project_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/projects/{project_id}/roster:
+    put:
+      tags:
+      - resources
+      summary: Set project members and workmates
+      operationId: set_roster_api_v1_tenants__tenant_id__projects__project_id__roster_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RosterIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/files:
+    get:
+      tags:
+      - resources
+      summary: 'Library: files you can read'
+      operationId: list_files_api_v1_tenants__tenant_id__files_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: include_content
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Content
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileOut'
+                title: Response List Files Api V1 Tenants  Tenant Id  Files Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - resources
+      summary: Create a text file in the Library
+      operationId: create_file_api_v1_tenants__tenant_id__files_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/files/{file_id}:
+    get:
+      tags:
+      - resources
+      summary: File with its text content
+      operationId: get_file_api_v1_tenants__tenant_id__files__file_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - resources
+      summary: Rename a file
+      operationId: patch_file_api_v1_tenants__tenant_id__files__file_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilePatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - resources
+      summary: Delete a file
+      operationId: delete_file_api_v1_tenants__tenant_id__files__file_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: file_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/automations:
+    get:
+      tags:
+      - resources
+      summary: Automations you can see
+      operationId: list_automations_api_v1_tenants__tenant_id__automations_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationOut'
+                title: Response List Automations Api V1 Tenants  Tenant Id  Automations Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - resources
+      summary: Create an automation
+      operationId: create_automation_api_v1_tenants__tenant_id__automations_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/automations/{automation_id}:
+    patch:
+      tags:
+      - resources
+      summary: Edit, pause or resume an automation
+      operationId: patch_automation_api_v1_tenants__tenant_id__automations__automation_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: automation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Automation Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - resources
+      summary: Delete an automation
+      operationId: delete_automation_api_v1_tenants__tenant_id__automations__automation_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: automation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Automation Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/scenarios:
+    get:
+      tags:
+      - resources
+      summary: Business scenario drafts
+      operationId: list_scenarios_api_v1_tenants__tenant_id__scenarios_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScenarioOut'
+                title: Response List Scenarios Api V1 Tenants  Tenant Id  Scenarios Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - resources
+      summary: Record a business scenario draft
+      operationId: create_scenario_api_v1_tenants__tenant_id__scenarios_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/scenarios/{scenario_id}:
+    patch:
+      tags:
+      - resources
+      summary: Edit a scenario draft
+      operationId: patch_scenario_api_v1_tenants__tenant_id__scenarios__scenario_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Scenario Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - resources
+      summary: Delete a scenario draft
+      operationId: delete_scenario_api_v1_tenants__tenant_id__scenarios__scenario_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Scenario Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/resources/{collection}/{resource_id}/sharing:
+    get:
+      tags:
+      - resources
+      summary: Who can access a resource
+      operationId: get_sharing_api_v1_tenants__tenant_id__resources__collection___resource_id__sharing_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: collection
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection
+      - name: resource_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Resource Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharingOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - resources
+      summary: Change sharing (needs share)
+      operationId: put_sharing_api_v1_tenants__tenant_id__resources__collection___resource_id__sharing_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: collection
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Collection
+      - name: resource_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Resource Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SharingIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SharingOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks:
+    get:
+      tags:
+      - tasks
+      summary: Tasks you started, are assigned, or can see through projects/grants
+      operationId: list_tasks_api_v1_tenants__tenant_id__tasks_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Include Archived
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskOut'
+                title: Response List Tasks Api V1 Tenants  Tenant Id  Tasks Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - tasks
+      summary: Start a task (queued for the orchestrator)
+      operationId: create_task_api_v1_tenants__tenant_id__tasks_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Idempotency-Key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskIn'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}:
+    get:
+      tags:
+      - tasks
+      summary: Task with its conversation
+      operationId: get_task_api_v1_tenants__tenant_id__tasks__task_id__get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - tasks
+      summary: Rename, assign, review, or set your own pin/archive/unread
+      operationId: patch_task_api_v1_tenants__tenant_id__tasks__task_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - tasks
+      summary: Delete a task
+      operationId: delete_task_api_v1_tenants__tenant_id__tasks__task_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/messages:
+    post:
+      tags:
+      - tasks
+      summary: Send a follow-up
+      operationId: add_message_api_v1_tenants__tenant_id__tasks__task_id__messages_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageIn'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/cancel:
+    post:
+      tags:
+      - tasks
+      summary: Cancel a task
+      operationId: cancel_api_v1_tenants__tenant_id__tasks__task_id__cancel_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/events:
+    get:
+      tags:
+      - events
+      summary: Tenant event stream (Server-Sent Events)
+      operationId: stream_api_v1_tenants__tenant_id__events_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: after
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: After
+      - name: Last-Event-ID
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last-Event-Id
+      responses:
+        '200':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -680,6 +1898,180 @@ components:
       - tenant_id
       - membership_id
       title: AcceptOut
+    AgentIn:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        description:
+          type: string
+          maxLength: 400
+          title: Description
+          default: ''
+        tag:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Tag
+        avatar:
+          type: integer
+          title: Avatar
+          default: 0
+        instructions:
+          type: string
+          title: Instructions
+          default: ''
+        context:
+          type: string
+          title: Context
+          default: ''
+        model_tier:
+          type: string
+          title: Model Tier
+          default: auto
+        skills:
+          items:
+            type: string
+          type: array
+          title: Skills
+      type: object
+      required:
+      - name
+      title: AgentIn
+    AgentOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        tag:
+          type: string
+          title: Tag
+        avatar:
+          type: integer
+          title: Avatar
+        instructions:
+          type: string
+          title: Instructions
+        context:
+          type: string
+          title: Context
+        model_tier:
+          type: string
+          title: Model Tier
+        skills:
+          items:
+            type: string
+          type: array
+          title: Skills
+        knowledge_source_ids:
+          items:
+            type: string
+          type: array
+          title: Knowledge Source Ids
+        task_count:
+          type: integer
+          title: Task Count
+        version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version
+        visibility:
+          type: string
+          title: Visibility
+        resource_owner_id:
+          type: string
+          title: Resource Owner Id
+        actions:
+          items:
+            type: string
+          type: array
+          title: Actions
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - tag
+      - avatar
+      - instructions
+      - context
+      - model_tier
+      - skills
+      - knowledge_source_ids
+      - task_count
+      - version
+      - visibility
+      - resource_owner_id
+      - actions
+      - updated_at
+      title: AgentOut
+    AgentPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 400
+          - type: 'null'
+          title: Description
+        tag:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Tag
+        avatar:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Avatar
+        instructions:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Instructions
+        context:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Context
+        model_tier:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Tier
+        skills:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Skills
+        add_skill:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Add Skill
+      type: object
+      title: AgentPatch
     AuditOut:
       properties:
         id:
@@ -744,6 +2136,148 @@ components:
       - items
       - next_cursor
       title: AuditPage
+    AutomationIn:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        description:
+          type: string
+          maxLength: 500
+          title: Description
+          default: ''
+        schedule:
+          type: string
+          maxLength: 120
+          minLength: 1
+          title: Schedule
+        timezone:
+          type: string
+          maxLength: 64
+          title: Timezone
+          default: UTC
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        prompt:
+          type: string
+          maxLength: 20000
+          title: Prompt
+          default: ''
+        enabled:
+          type: boolean
+          title: Enabled
+          default: true
+      type: object
+      required:
+      - name
+      - schedule
+      title: AutomationIn
+    AutomationOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        schedule:
+          type: string
+          title: Schedule
+        timezone:
+          type: string
+          title: Timezone
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        prompt:
+          type: string
+          title: Prompt
+        enabled:
+          type: boolean
+          title: Enabled
+        next_run_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Run At
+        last_run_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Run At
+        resource_owner_id:
+          type: string
+          title: Resource Owner Id
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - schedule
+      - timezone
+      - agent_id
+      - prompt
+      - enabled
+      - next_run_at
+      - last_run_at
+      - resource_owner_id
+      title: AutomationOut
+    AutomationPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+        schedule:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 1
+          - type: 'null'
+          title: Schedule
+        timezone:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+          title: Timezone
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        prompt:
+          anyOf:
+          - type: string
+            maxLength: 20000
+          - type: 'null'
+          title: Prompt
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      type: object
+      title: AutomationPatch
     DepartmentIn:
       properties:
         name:
@@ -778,6 +2312,119 @@ components:
       - name
       - parent_id
       title: DepartmentOut
+    FileIn:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          title: Name
+        kind:
+          type: string
+          enum:
+          - doc
+          - slides
+          - sheet
+          - pdf
+          - image
+          - other
+          title: Kind
+          default: doc
+        media_type:
+          type: string
+          title: Media Type
+          default: text/markdown
+        content:
+          type: string
+          maxLength: 2000000
+          title: Content
+          default: ''
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+      type: object
+      required:
+      - name
+      title: FileIn
+    FileOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        media_type:
+          type: string
+          title: Media Type
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+        source_task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Task Id
+        content:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version
+        visibility:
+          type: string
+          title: Visibility
+        resource_owner_id:
+          type: string
+          title: Resource Owner Id
+        actions:
+          items:
+            type: string
+          type: array
+          title: Actions
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - kind
+      - media_type
+      - project_id
+      - source_task_id
+      - content
+      - size_bytes
+      - version
+      - visibility
+      - resource_owner_id
+      - actions
+      - updated_at
+      title: FileOut
+    FilePatch:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          title: Name
+      type: object
+      required:
+      - name
+      title: FilePatch
     HTTPValidationError:
       properties:
         detail:
@@ -1003,6 +2650,57 @@ components:
           title: Department Id
       type: object
       title: MemberPatch
+    MessageIn:
+      properties:
+        prompt:
+          type: string
+          maxLength: 20000
+          title: Prompt
+      type: object
+      required:
+      - prompt
+      title: MessageIn
+    MessageOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        role:
+          type: string
+          title: Role
+        content:
+          type: string
+          title: Content
+        file_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: File Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - role
+      - content
+      - file_id
+      - created_at
+      title: MessageOut
+    ModelOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+      type: object
+      required:
+      - id
+      - label
+      title: ModelOut
     PreferencesIn:
       properties:
         last_tenant_id:
@@ -1012,6 +2710,211 @@ components:
       required:
       - last_tenant_id
       title: PreferencesIn
+    ProjectIn:
+      properties:
+        name:
+          type: string
+          maxLength: 80
+          title: Name
+        description:
+          type: string
+          maxLength: 500
+          title: Description
+          default: ''
+        color:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Color
+      type: object
+      required:
+      - name
+      title: ProjectIn
+    ProjectOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        shared_context:
+          type: string
+          title: Shared Context
+        member_ids:
+          items:
+            type: string
+          type: array
+          title: Member Ids
+        agent_ids:
+          items:
+            type: string
+          type: array
+          title: Agent Ids
+        task_count:
+          type: integer
+          title: Task Count
+        visibility:
+          type: string
+          title: Visibility
+        resource_owner_id:
+          type: string
+          title: Resource Owner Id
+        actions:
+          items:
+            type: string
+          type: array
+          title: Actions
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - color
+      - shared_context
+      - member_ids
+      - agent_ids
+      - task_count
+      - visibility
+      - resource_owner_id
+      - actions
+      - updated_at
+      title: ProjectOut
+    ProjectPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 500
+          - type: 'null'
+          title: Description
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        shared_context:
+          anyOf:
+          - type: string
+            maxLength: 20000
+          - type: 'null'
+          title: Shared Context
+      type: object
+      title: ProjectPatch
+    RosterIn:
+      properties:
+        member_ids:
+          items:
+            type: string
+          type: array
+          title: Member Ids
+        agent_ids:
+          items:
+            type: string
+          type: array
+          title: Agent Ids
+      type: object
+      required:
+      - member_ids
+      title: RosterIn
+    ScenarioIn:
+      properties:
+        name:
+          type: string
+          maxLength: 60
+          title: Name
+        problem:
+          type: string
+          maxLength: 600
+          minLength: 1
+          title: Problem
+        role:
+          type: string
+          maxLength: 100
+          title: Role
+          default: ''
+        input:
+          type: string
+          maxLength: 600
+          title: Input
+          default: ''
+        output:
+          type: string
+          maxLength: 600
+          title: Output
+          default: ''
+        ecosystems:
+          items:
+            type: string
+            enum:
+            - feishu
+            - wecom
+          type: array
+          title: Ecosystems
+      type: object
+      required:
+      - name
+      - problem
+      title: ScenarioIn
+    ScenarioOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        problem:
+          type: string
+          title: Problem
+        role:
+          type: string
+          title: Role
+        input:
+          type: string
+          title: Input
+        output:
+          type: string
+          title: Output
+        ecosystems:
+          items:
+            type: string
+          type: array
+          title: Ecosystems
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - name
+      - problem
+      - role
+      - input
+      - output
+      - ecosystems
+      - updated_at
+      title: ScenarioOut
     SessionOut:
       properties:
         id:
@@ -1039,6 +2942,272 @@ components:
       - last_seen_at
       - user_agent
       title: SessionOut
+    SharingIn:
+      properties:
+        visibility:
+          type: string
+          enum:
+          - private
+          - selected
+          - project
+          - organization
+          title: Visibility
+        member_ids:
+          items:
+            type: string
+          type: array
+          title: Member Ids
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+        actions:
+          items:
+            type: string
+          type: array
+          title: Actions
+      type: object
+      required:
+      - visibility
+      title: SharingIn
+    SharingOut:
+      properties:
+        visibility:
+          type: string
+          title: Visibility
+        grants:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Grants
+      type: object
+      required:
+      - visibility
+      - grants
+      title: SharingOut
+    SkillOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        category:
+          type: string
+          title: Category
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - category
+      title: SkillOut
+    TaskIn:
+      properties:
+        agent_id:
+          type: string
+          title: Agent Id
+        prompt:
+          type: string
+          maxLength: 20000
+          title: Prompt
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+        model_tier:
+          type: string
+          title: Model Tier
+          default: auto
+        capabilities:
+          items:
+            type: string
+          type: array
+          title: Capabilities
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Name
+      type: object
+      required:
+      - agent_id
+      - prompt
+      title: TaskIn
+    TaskOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        status:
+          type: string
+          title: Status
+        status_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status Reason
+        kind:
+          type: string
+          title: Kind
+        agent_id:
+          type: string
+          title: Agent Id
+        agent_version_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Version Id
+        project_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Project Id
+        model_tier:
+          type: string
+          title: Model Tier
+        capabilities:
+          items:
+            type: string
+          type: array
+          title: Capabilities
+        prompt:
+          type: string
+          title: Prompt
+        created_by:
+          type: string
+          title: Created By
+        assignee_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assignee Id
+        supporting_agent_ids:
+          items:
+            type: string
+          type: array
+          title: Supporting Agent Ids
+        review_state:
+          type: string
+          title: Review State
+        pinned:
+          type: boolean
+          title: Pinned
+        archived:
+          type: boolean
+          title: Archived
+        unread:
+          type: boolean
+          title: Unread
+        visibility:
+          type: string
+          title: Visibility
+        actions:
+          items:
+            type: string
+          type: array
+          title: Actions
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        finished_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Finished At
+        messages:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/MessageOut'
+            type: array
+          - type: 'null'
+          title: Messages
+      type: object
+      required:
+      - id
+      - name
+      - status
+      - status_reason
+      - kind
+      - agent_id
+      - agent_version_id
+      - project_id
+      - model_tier
+      - capabilities
+      - prompt
+      - created_by
+      - assignee_id
+      - supporting_agent_ids
+      - review_state
+      - pinned
+      - archived
+      - unread
+      - visibility
+      - actions
+      - created_at
+      - updated_at
+      - finished_at
+      title: TaskOut
+    TaskPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Name
+        pinned:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Pinned
+        archived:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Archived
+        unread:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Unread
+        assignee_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assignee Id
+        supporting_agent_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Supporting Agent Ids
+        review_state:
+          anyOf:
+          - type: string
+            pattern: ^(review|accepted)$
+          - type: 'null'
+          title: Review State
+      type: object
+      title: TaskPatch
     TenantCreate:
       properties:
         name:
@@ -1199,3 +3368,35 @@ components:
       - msg
       - type
       title: ValidationError
+    VersionOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        version:
+          type: integer
+          title: Version
+        model_tier:
+          type: string
+          title: Model Tier
+        skills:
+          items:
+            type: string
+          type: array
+          title: Skills
+        published_at:
+          type: string
+          format: date-time
+          title: Published At
+        published_by:
+          type: string
+          title: Published By
+      type: object
+      required:
+      - id
+      - version
+      - model_tier
+      - skills
+      - published_at
+      - published_by
+      title: VersionOut

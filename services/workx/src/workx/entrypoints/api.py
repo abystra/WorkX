@@ -16,9 +16,13 @@ from workx.core import context, ids
 from workx.core.db import Database
 from workx.core.errors import ApiError
 from workx.core.settings import ApiSettings
+from workx.domains.agents import api as agents_api
 from workx.domains.audit import api as audit_api
 from workx.domains.identity import api as identity_api
 from workx.domains.identity.oidc import OidcProvider
+from workx.domains.resources import api as resources_api
+from workx.domains.resources import stream as stream_api
+from workx.domains.tasks import api as tasks_api
 from workx.domains.tenancy import api as tenancy_api
 from workx.platform.web import AppState
 
@@ -112,4 +116,12 @@ def create_app(
 
 def domain_routers() -> list[APIRouter]:
     """Routers contributed by domains. Grows phase by phase (docs/delivery/PLAN.md)."""
-    return [identity_api.router, tenancy_api.router, audit_api.router]
+    return [
+        identity_api.router,
+        tenancy_api.router,
+        audit_api.router,
+        agents_api.router,
+        resources_api.router,
+        tasks_api.router,
+        stream_api.router,
+    ]
