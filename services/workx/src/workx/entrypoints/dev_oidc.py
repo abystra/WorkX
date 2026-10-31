@@ -34,6 +34,7 @@ class _Grant:
     name: str
     verified: bool
     expires: float
+    idp: str = ""
 
 
 @dataclass
@@ -61,6 +62,7 @@ class DevIssuer:
             "name": grant.name,
             "sid": secrets.token_hex(8),
             "acr": "password",
+            **({"identity_provider": grant.idp} if grant.idp else {}),
         }
         header = {"alg": "RS256", "kid": self.key.thumbprint()}
         return jwt.encode(header, claims, self.key)
@@ -119,6 +121,8 @@ def create_dev_oidc_app(
             name=name or email.split("@")[0],
             verified=not email.startswith("unverified"),
             expires=time.time() + 60,
+            # Simulates Keycloak brokering: kc_idp_hint names the organization's identity provider.
+            idp=params.get("kc_idp_hint", ""),
         )
         query = urlencode({"code": code, "state": params.get("state", "")})
         return RedirectResponse(f"{params['redirect_uri']}?{query}", status_code=302)

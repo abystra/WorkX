@@ -7,6 +7,7 @@ opaque session cookie. Only SHA-256 digests of session values are stored.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -45,8 +46,17 @@ class LoginStart:
     browser_binding: str
 
 
+IDP_ALIAS = re.compile(r"^[a-z0-9][a-z0-9_.-]{0,62}$")
+
+
 def begin_login(
-    session: Session, provider: OidcProvider, settings: ApiSettings, *, intent: str, return_to: str | None
+    session: Session,
+    provider: OidcProvider,
+    settings: ApiSettings,
+    *,
+    intent: str,
+    return_to: str | None,
+    idp_hint: str | None = None,
 ) -> LoginStart:
     if intent not in ("login", "signup"):
         intent = "login"
@@ -69,6 +79,7 @@ def begin_login(
         nonce=nonce,
         code_challenge=tokens.pkce_challenge(verifier),
         intent=intent,
+        idp_hint=idp_hint if idp_hint and IDP_ALIAS.match(idp_hint) else None,
     )
     return LoginStart(url, binding)
 
@@ -130,6 +141,7 @@ def complete_login(
         user_id=user.id,
         session_hash=tokens.digest(raw),
         auth_strength=str(claims.get("acr") or "password")[:64],
+        idp_alias=str(claims.get(settings.oidc.idp_claim) or "")[:64] or None,
         idp_sid=claims.get("sid"),
         id_token_hint=token_set["id_token"],
         created_at=now,

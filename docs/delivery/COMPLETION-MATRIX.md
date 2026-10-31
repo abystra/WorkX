@@ -40,7 +40,7 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | R2-2 | Credential Worker (class D) + Feishu CLI wrapper | P-10 | ⬜ | ⬜ | ⬜ | |
 | R2-3 | Connector knowledge sync | P-10 | ⬜ | ⬜ | ⬜ | |
 | R2-4 | Automations scheduler | P-10 | ✅ | ✅ | n/a | Worker tick each minute (deduped); due automations found by a narrow SECURITY DEFINER function; one run per slot; after downtime the latest missed slot runs once; runs as the owner; skipped runs recorded with a reason; runs API |
-| R2-5 | Organization SSO and re-auth | P-10 | ⬜ | ⬜ | ⬜ | |
+| R2-5 | Organization SSO and re-auth | P-10 | ✅ | ✅ | ⛔ | Sessions record the brokered identity provider (configurable claim, Keycloak `identity_provider` mapper); `kc_idp_hint` on login; org policy (owner only, cannot lock themselves out); `403 TENANT_REAUTH_REQUIRED` with login URL on every tenant-scoped request; web redirects through the org sign-in (browser journey). Policy is set through the API; no settings screen yet. Real: Keycloak with a brokered IdP |
 | R3-1 | Plans, seats, quota enforcement | P-11 | ⬜ | ⬜ | n/a | |
 | R3-2 | Billing integration | P-11 | ⬜ | ⬜ | ⬜ | Real: payment provider (not chosen) |
 | R3-3 | Directory sync (SCIM) | P-11 | ⬜ | ⬜ | ⬜ | |

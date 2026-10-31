@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from fastapi import Depends, Request
 
 from workx.core.errors import ApiError
-from workx.domains.identity import service, tokens
+from workx.domains.identity import service, sso, tokens
 from workx.domains.identity.service import Principal
 from workx.platform.web import AppState, app_state
 
@@ -38,6 +38,9 @@ def current_principal(request: Request, state: Annotated[AppState, Depends(app_s
     raw = request.cookies.get(state.settings.session_cookie_name)
     with state.db.transaction() as session:
         principal = service.authenticate(session, raw, state.settings)
+        tenant_ref = request.path_params.get("tenant_id")
+        if tenant_ref:
+            sso.enforce(session, principal, str(tenant_ref))
     if request.method not in SAFE_METHODS:
         check_origin(request, state)
         expected = service.csrf_token(state.settings, principal.session_token)

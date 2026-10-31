@@ -33,6 +33,8 @@ class LoginSession(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     session_hash: Mapped[bytes]
     auth_strength: Mapped[str] = mapped_column(server_default="password")
+    # Identity provider alias that authenticated this session (Keycloak brokering), for org SSO policies.
+    idp_alias: Mapped[str | None]
     idp_sid: Mapped[str | None]
     id_token_hint: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default="now()")

@@ -13,13 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from workx.core import ids
-from workx.core.errors import ApiError, not_found
+from workx.core.errors import ApiError, conflict, forbidden, not_found, validation
 from workx.core.orm import utcnow
 from workx.domains.audit import service as audit
 from workx.domains.identity.auth import Authenticated, State
 from workx.domains.identity.models import User
 from workx.domains.tenancy import invitations, service
 from workx.domains.tenancy.models import Department, Invitation, Membership, Tenant
+from workx.domains.tenancy.service import tenant_scope
 from workx.platform import idempotency
 
 router = APIRouter(tags=["tenancy"])
@@ -465,3 +466,47 @@ def accept(body: TokenIn, principal: Authenticated, state: State) -> AcceptOut:
         return AcceptOut(
             tenant_id=ids.encode("tenant", membership.tenant_id), membership_id=ids.encode("membership", membership.id)
         )
+
+
+class SsoPolicy(BaseModel):
+    required: bool = False
+    idp_alias: str = Field(default="", max_length=63, pattern=r"^$|^[a-z0-9][a-z0-9_.-]{0,62}$")
+
+
+@router.get("/tenants/{tenant_id}/sso", summary="Organization sign-in policy")
+def get_sso(tenant_id: str, principal: Authenticated, state: State) -> SsoPolicy:
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tenant_uuid(tenant_id)) as (_session, actor):
+        return SsoPolicy(**{k: v for k, v in (actor.tenant.sso or {}).items() if k in ("required", "idp_alias")})
+
+
+@router.put("/tenants/{tenant_id}/sso", summary="Require sign-in through the organization's identity provider")
+def put_sso(tenant_id: str, body: SsoPolicy, principal: Authenticated, state: State) -> SsoPolicy:
+    from workx.domains.identity import sso
+
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tenant_uuid(tenant_id), write=True) as (
+        session,
+        actor,
+    ):
+        if actor.tenant.type != "organization" or actor.role != "owner":
+            raise forbidden("Only the organization owner can change the sign-in policy.")
+        if body.required and not body.idp_alias:
+            raise validation("Choose the identity provider members must use.", data={"field": "idp_alias"})
+        # Never lock the owner out: the session making the change must already satisfy the new policy.
+        if not sso.satisfied(body.model_dump(), principal.login_session.idp_alias):
+            raise conflict(
+                "TENANT_REAUTH_REQUIRED",
+                "Sign in with this identity provider first, then require it.",
+                {"idp_hint": body.idp_alias, "login_url": sso.login_url(tenant_id, body.idp_alias)},
+            )
+        tenant = session.get(Tenant, actor.tenant.id, with_for_update=True)
+        assert tenant is not None
+        tenant.sso = body.model_dump()
+        audit.record(
+            session,
+            "tenant.sso_policy_changed",
+            tenant_id=tenant.id,
+            actor_user_id=actor.user_id,
+            actor_membership_id=actor.membership.id,
+            data=body.model_dump(),
+        )
+        return body

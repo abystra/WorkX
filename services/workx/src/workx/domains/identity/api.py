@@ -45,9 +45,12 @@ def login(
     state: State,
     intent: Annotated[str, Query(pattern="^(login|signup)$")] = "login",
     return_to: str = "/",
+    idp_hint: Annotated[str | None, Query(max_length=63)] = None,
 ) -> RedirectResponse:
     with state.db.transaction() as session:
-        start = service.begin_login(session, provider(state), state.settings, intent=intent, return_to=return_to)
+        start = service.begin_login(
+            session, provider(state), state.settings, intent=intent, return_to=return_to, idp_hint=idp_hint
+        )
     response = RedirectResponse(start.authorization_url, status_code=302)
     _set_cookie(response, state, BINDING_COOKIE, start.browser_binding, max_age=600, path="/api/v1/auth")
     return response

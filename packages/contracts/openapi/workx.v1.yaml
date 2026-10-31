@@ -25,6 +25,15 @@ paths:
           type: string
           default: /
           title: Return To
+      - name: idp_hint
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 63
+          - type: 'null'
+          title: Idp Hint
       responses:
         '200':
           description: Successful Response
@@ -616,6 +625,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AcceptOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/sso:
+    get:
+      tags:
+      - tenancy
+      summary: Organization sign-in policy
+      operationId: get_sso_api_v1_tenants__tenant_id__sso_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsoPolicy'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - tenancy
+      summary: Require sign-in through the organization's identity provider
+      operationId: put_sso_api_v1_tenants__tenant_id__sso_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsoPolicy'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsoPolicy'
         '422':
           description: Validation Error
           content:
@@ -5133,6 +5199,20 @@ components:
       - latest
       - updated_at
       title: SourceOut
+    SsoPolicy:
+      properties:
+        required:
+          type: boolean
+          title: Required
+          default: false
+        idp_alias:
+          type: string
+          maxLength: 63
+          pattern: ^$|^[a-z0-9][a-z0-9_.-]{0,62}$
+          title: Idp Alias
+          default: ''
+      type: object
+      title: SsoPolicy
     TaskIn:
       properties:
         agent_id:

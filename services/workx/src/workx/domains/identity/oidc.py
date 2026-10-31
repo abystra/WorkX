@@ -71,7 +71,16 @@ class OidcProvider:
         keys: KeySet = self._jwks
         return keys
 
-    def authorization_url(self, *, redirect_uri: str, state: str, nonce: str, code_challenge: str, intent: str) -> str:
+    def authorization_url(
+        self,
+        *,
+        redirect_uri: str,
+        state: str,
+        nonce: str,
+        code_challenge: str,
+        intent: str,
+        idp_hint: str | None = None,
+    ) -> str:
         params = {
             "response_type": "code",
             "client_id": self.settings.client_id,
@@ -85,6 +94,9 @@ class OidcProvider:
         if intent == "signup":
             # Keycloak and others honor prompt=create for registration (OIDC Prompt Create spec).
             params["prompt"] = "create"
+        if idp_hint:
+            # Keycloak goes straight to the brokered identity provider (organization SSO).
+            params["kc_idp_hint"] = idp_hint
         return f"{self.metadata()['authorization_endpoint']}?{urlencode(params)}"
 
     def exchange_code(self, *, code: str, code_verifier: str, redirect_uri: str) -> dict[str, Any]:

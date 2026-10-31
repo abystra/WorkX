@@ -60,6 +60,8 @@ class OidcSettings(BaseSettings):
     scopes: str = "openid email profile"
     # Allow http issuers only for local development and tests.
     allow_insecure_issuer: bool = False
+    # ID token claim naming the brokered identity provider (Keycloak: a "identity_provider" mapper).
+    idp_claim: str = "identity_provider"
 
 
 class ApiSettings(BaseWorkxSettings):

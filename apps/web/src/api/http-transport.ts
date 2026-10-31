@@ -47,6 +47,12 @@ export class HttpTransport implements Transport {
       }
       throw new ApiRequestError(401, code, json?.detail || 'Sign in again');
     }
+    if (response.status === 403 && json?.code === 'TENANT_REAUTH_REQUIRED') {
+      // Organization SSO policy: sign in again through the organization's identity provider, then come back.
+      const url = String(json?.data?.login_url || '');
+      if (url.startsWith('/api/v1/auth/login?')) window.location.assign(url);
+      throw new ApiRequestError(403, 'TENANT_REAUTH_REQUIRED', json?.detail || 'Sign in again');
+    }
     if (response.status === 403 && call.forbiddenAs !== undefined) return call.forbiddenAs as T;
     if (!response.ok) throw new ApiRequestError(response.status, json?.code || 'INTERNAL', json?.detail || json?.message || response.statusText);
     if (path === '/me') hadSession = true;

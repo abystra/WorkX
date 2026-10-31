@@ -19,6 +19,8 @@ class Tenant(Base):
     name: Mapped[str]
     owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     status: Mapped[str] = mapped_column(server_default="active")
+    # {"required": bool, "idp_alias": str}: members must sign in through this identity provider (R2).
+    sso: Mapped[dict[str, Any]] = mapped_column(server_default="{}")
     plan_id: Mapped[str] = mapped_column(server_default="free")
     region_cell: Mapped[str] = mapped_column(server_default="default")
     authz_epoch: Mapped[int] = mapped_column(server_default="1")

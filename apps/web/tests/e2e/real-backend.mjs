@@ -229,6 +229,28 @@ await alex.page.goto(`${base}/t/${orgId}/team/members`);
 await alex.page.waitForTimeout(800);
 expect('J3 organization members page lists both people', (await alex.page.textContent('body')).includes(bobEmail));
 
+// ---- R2 SSO: the owner signs in through the org's identity provider and requires it; Bob is sent through it.
+const alexEmail = alex.email;
+await alex.page.goto(`${base}/api/v1/auth/login?idp_hint=acme-sso&return_to=${encodeURIComponent(`/t/${orgId}/home`)}`);
+await alex.page.waitForSelector('input[name="email"]');
+await alex.page.fill('input[name="email"]', alexEmail);
+await alex.page.click('button');
+await alex.page.waitForURL(new RegExp(`/t/${orgId}/home`), { timeout: 15000 });
+const policy = await alex.page.evaluate(async orgId => {
+  const csrf = (await (await fetch('/api/v1/me')).json()).csrf_token;
+  const response = await fetch(`/api/v1/tenants/${orgId}/sso`, { method: 'PUT', headers: { 'content-type': 'application/json', 'x-workx-csrf': csrf }, body: JSON.stringify({ required: true, idp_alias: 'acme-sso' }) });
+  return response.status;
+}, orgId);
+expect('SSO the owner (signed in through the provider) requires it for the organization', policy === 200, String(policy));
+await bob.page.goto(`${base}/t/${orgId}/home`);
+await bob.page.waitForSelector('input[name="email"]', { timeout: 15000 });
+expect('SSO a member with a password session is sent to the organization\'s sign-in', /kc_idp_hint=acme-sso/.test(bob.page.url()), bob.page.url());
+await bob.page.fill('input[name="email"]', bobEmail);
+await bob.page.click('button');
+await bob.page.waitForURL(new RegExp(`/t/${orgId}/home`), { timeout: 15000 });
+await bob.page.waitForSelector('.app-layout', { timeout: 15000 });
+expect('SSO after signing in through it, the member is back in the organization', bob.page.url().includes(orgId));
+
 expect('no page errors (Alex)', alex.errors.length === 0, alex.errors.join(' | '));
 expect('no page errors (Bob)', bob.errors.length === 0, bob.errors.join(' | '));
 await browser.close();
