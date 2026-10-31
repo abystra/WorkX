@@ -107,6 +107,11 @@ CHANNEL_SECRET_FIELDS = {
 }
 
 
+class DocumentsIn(BaseModel):
+    tenant_id: uuid.UUID
+    connection_id: uuid.UUID
+
+
 class SecretOut(BaseModel):
     credential_id: str
     version: int
@@ -325,6 +330,49 @@ def create_broker_app(
         except httpx.HTTPError as exc:
             return {"status": "failed", "retryable": True, "error": type(exc).__name__}
         return {"status": "delivered", "receipt": receipt}
+
+    @app.post("/internal/connections/documents")
+    def connection_documents(
+        body: DocumentsIn, x_workx_internal_token: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        """Knowledge sync (R2): lists the account's documents with the owner's own credential."""
+        check(x_workx_internal_token)
+        from workx.trusted.tool_gateway.tools import REGISTRY, Access, ToolFailure
+
+        with db.transaction(tenant_id=body.tenant_id) as session:
+            connection = session.get(Connection, body.connection_id, with_for_update=True)
+            if connection is None or connection.tenant_id != body.tenant_id or connection.status != "active":
+                raise ApiError(409, "NEEDS_AUTH", "The connection is not active.")
+            connector = catalog.get(connection.connector_id)
+            if connector is None or connector.sync_tool is None or connector.auth != "oauth":
+                raise ApiError(409, "INVALID_STATE", "This connection cannot be synced.")
+            installation = session.get(ConnectorInstallation, (body.tenant_id, connector.id))
+            try:
+                token = oauth.access_token(session, vault, connection, connector, http)
+            except oauth.OAuthFailure as exc:
+                connection.status, connection.last_error = "needs_auth", str(exc)[:200]
+                failed = True
+            else:
+                failed = False
+                config = dict(installation.config or {}) if installation else {}
+        if failed:
+            raise ApiError(409, "NEEDS_AUTH", "The connection needs a new authorization.")
+        try:
+            result = REGISTRY[connector.sync_tool].run(settings, http, {}, Access(token, config))  # type: ignore[arg-type]
+        except ToolFailure as exc:
+            raise ApiError(502, "UPSTREAM_UNAVAILABLE", str(exc)[:200]) from exc
+        items = result.get("notes") or result.get("documents") or []
+        return {
+            "documents": [
+                {
+                    "id": str(d.get("id", "")),
+                    "title": str(d.get("title", ""))[:300],
+                    "body": str(d.get("body", ""))[:200_000],
+                }
+                for d in items
+                if isinstance(d, dict) and d.get("id")
+            ]
+        }
 
     @app.post("/internal/installations/secret")
     def installation_secret(

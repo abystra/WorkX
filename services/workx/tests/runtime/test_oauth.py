@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import importlib.util
 import threading
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -24,18 +23,10 @@ from workx.core.db import Database
 from workx.core.settings import Environment, TrustedSettings
 from workx.domains.connections import catalog
 from workx.domains.connections.models import Connection
-from workx.entrypoints.dev_notes import create_dev_notes_app
 from workx.entrypoints.worker import build_context
 from workx.platform import jobs
 from workx.trusted.broker.app import vault_for
 from workx.trusted.credentials import oauth
-
-
-@pytest.fixture(scope="module")
-def notes() -> Iterator[Served]:
-    served = Served(create_dev_notes_app(environment=Environment.TEST, refresh_delay=0.3))
-    yield served
-    served.stop()
 
 
 def stats(notes: Served) -> dict[str, Any]:

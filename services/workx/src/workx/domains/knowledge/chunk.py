@@ -46,8 +46,8 @@ def _split_long(text: str) -> list[str]:
 
 
 def _unit(block: Block) -> tuple[object, ...]:
-    """Chunks never span pages, sheets or slides, so a citation's locator is exact."""
-    return tuple(block.locator.get(k) for k in ("page", "sheet", "slide"))
+    """Chunks never span pages, sheets, slides or synced documents, so a citation's locator is exact."""
+    return tuple(block.locator.get(k) for k in ("page", "sheet", "slide", "document"))
 
 
 def chunk(blocks: list[Block]) -> list[Chunk]:

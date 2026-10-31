@@ -36,6 +36,8 @@ class Connector:
     remote_mcp: dict[str, str] | None = None
     # Holds a channel binding's bot secrets (usage class "channel"); not offered as a tool connection.
     channel: bool = False
+    # Tool that lists the account's documents for knowledge sync (R2): returns {"notes"|"documents": [...]}.
+    sync_tool: str | None = None
 
 
 CONNECTORS: dict[str, Connector] = {
@@ -70,6 +72,7 @@ CONNECTORS: dict[str, Connector] = {
             oauth=OAuthEndpoints(authorize_url="", token_url="", scopes=("notes.read", "notes.write")),
             config_fields=("base_url", "client_id"),
             remote_mcp={"notes_create": "create_note", "notes_list": "list_notes"},
+            sync_tool="notes_list",
         ),
     )
 }

@@ -28,11 +28,17 @@ SQL = text(
     """
     WITH allowed AS (
       SELECT s.id, s.published_revision_id, s.name FROM knowledge_sources s
-      JOIN files f ON f.id = s.file_id AND f.tenant_id = s.tenant_id
-      WHERE s.tenant_id = :tenant AND s.deleted_at IS NULL AND f.deleted_at IS NULL
+      LEFT JOIN files f ON f.id = s.file_id AND f.tenant_id = s.tenant_id
+      LEFT JOIN connections c ON c.id = s.connection_id AND c.tenant_id = s.tenant_id
+      WHERE s.tenant_id = :tenant AND s.deleted_at IS NULL
         AND s.published_revision_id IS NOT NULL AND s.id = ANY(:sources)
-        AND (workx_can(:tenant, :membership, f.owner_membership_id, 'file', f.id, 'read')
-             OR f.project_id IN (SELECT project_id FROM workx_member_projects(:tenant, :membership)))
+        AND (
+          (s.kind = 'file' AND f.deleted_at IS NULL
+           AND (workx_can(:tenant, :membership, f.owner_membership_id, 'file', f.id, 'read')
+                OR f.project_id IN (SELECT project_id FROM workx_member_projects(:tenant, :membership))))
+          -- a member's own connected account: private to them, and only while the connection is active
+          OR (s.kind = 'connector' AND s.owner_membership_id = :membership AND c.status = 'active')
+        )
     ),
     fts AS (
       SELECT c.id, row_number() OVER (ORDER BY ts_rank_cd(c.tsv, q) DESC) AS rank

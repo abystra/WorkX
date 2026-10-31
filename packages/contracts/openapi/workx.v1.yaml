@@ -5156,20 +5156,35 @@ components:
     SourceIn:
       properties:
         file_id:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: File Id
+        connection_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
       type: object
-      required:
-      - file_id
       title: SourceIn
     SourceOut:
       properties:
         id:
           type: string
           title: Id
-        file_id:
+        kind:
           type: string
+          title: Kind
+        file_id:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: File Id
+        connection_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection Id
         name:
           type: string
           title: Name
@@ -5192,7 +5207,9 @@ components:
       type: object
       required:
       - id
+      - kind
       - file_id
+      - connection_id
       - name
       - status
       - error_code

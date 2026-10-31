@@ -300,8 +300,8 @@ def private_content_used(session: Session, task_id: uuid.UUID) -> bool:
               SELECT 1 FROM retrieval_logs r, unnest(r.chunk_ids) AS c(id)
               JOIN knowledge_chunks k ON k.id = c.id
               JOIN knowledge_sources s ON s.id = k.source_id
-              JOIN files f ON f.id = s.file_id
-              WHERE r.task_id = :t AND f.visibility <> 'organization'
+              LEFT JOIN files f ON f.id = s.file_id
+              WHERE r.task_id = :t AND (f.id IS NULL OR f.visibility <> 'organization')
             )
             """
         ),

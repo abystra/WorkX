@@ -124,7 +124,9 @@ def automation_tick(ctx: jobs.JobContext, job: jobs.Job) -> None:
 
 
 def schedule_tick(ctx: jobs.JobContext, now: datetime | None = None) -> None:
-    """Enqueued once per minute by every worker; the dedupe key makes it run once."""
+    """Enqueued once per minute by every worker (scheduler and knowledge re-sync); the dedupe key makes each
+    run once."""
     minute = (now or datetime.now(UTC)).replace(second=0, microsecond=0)
     with ctx.db.transaction() as session:
-        jobs.enqueue(session, "automation_tick", {}, dedupe_key=f"automation_tick:{minute.isoformat()}", max_attempts=1)
+        for kind in ("automation_tick", "knowledge_sync_tick"):
+            jobs.enqueue(session, kind, {}, dedupe_key=f"{kind}:{minute.isoformat()}", max_attempts=1)

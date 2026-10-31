@@ -16,7 +16,10 @@ class KnowledgeSource(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     tenant_id: Mapped[uuid.UUID]
-    file_id: Mapped[uuid.UUID]
+    kind: Mapped[str] = mapped_column(server_default="file")  # file | connector
+    file_id: Mapped[uuid.UUID | None]
+    connection_id: Mapped[uuid.UUID | None]
+    last_synced_at: Mapped[datetime | None]
     name: Mapped[str]
     owner_membership_id: Mapped[uuid.UUID]
     status: Mapped[str] = mapped_column(server_default="processing")
@@ -34,7 +37,7 @@ class KnowledgeRevision(Base):
     tenant_id: Mapped[uuid.UUID]
     source_id: Mapped[uuid.UUID]
     revision_no: Mapped[int]
-    file_version_id: Mapped[uuid.UUID]
+    file_version_id: Mapped[uuid.UUID | None]
     state: Mapped[str] = mapped_column(server_default="building")
     stage: Mapped[str] = mapped_column(server_default="queued")
     completeness: Mapped[str] = mapped_column(server_default="complete")

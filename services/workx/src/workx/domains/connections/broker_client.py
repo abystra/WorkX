@@ -89,3 +89,10 @@ class BrokerClient:
 
     def channel_send(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._post("/internal/channels/send", body)
+
+    def connection_documents(self, *, tenant_id: uuid.UUID, connection_id: uuid.UUID) -> list[dict[str, Any]]:
+        result = self._post(
+            "/internal/connections/documents", {"tenant_id": str(tenant_id), "connection_id": str(connection_id)}
+        )
+        documents: list[dict[str, Any]] = result["documents"]
+        return documents

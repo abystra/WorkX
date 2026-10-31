@@ -18,6 +18,8 @@ from workx.domains.agents import service as agents
 from workx.domains.agents.models import Agent
 from workx.domains.audit import service as audit
 from workx.domains.authz import policy
+from workx.domains.connections import catalog
+from workx.domains.connections.models import Connection
 from workx.domains.identity.auth import Authenticated, State
 from workx.domains.knowledge import search as retrieval
 from workx.domains.knowledge import service
@@ -46,7 +48,9 @@ class RevisionOut(BaseModel):
 
 class SourceOut(BaseModel):
     id: str
-    file_id: str
+    kind: str
+    file_id: str | None
+    connection_id: str | None
     name: str
     status: str
     error_code: str | None
@@ -72,7 +76,9 @@ def _out(session: Session, source: KnowledgeSource) -> SourceOut:
     )
     return SourceOut(
         id=ids.encode("knowledge_source", source.id),
-        file_id=ids.encode("file", source.file_id),
+        kind=source.kind,
+        file_id=ids.encode("file", source.file_id) if source.file_id else None,
+        connection_id=ids.encode("connection", source.connection_id) if source.connection_id else None,
         name=source.name,
         status=source.status,
         error_code=source.error_code,
@@ -92,15 +98,21 @@ def _out(session: Session, source: KnowledgeSource) -> SourceOut:
     )
 
 
+def _readable(session: Session, actor: Actor, source: KnowledgeSource) -> bool:
+    """File sources follow the file's permissions; connector sources are private to the account's owner."""
+    if source.kind == "connector":
+        return source.owner_membership_id == actor.membership.id
+    file = session.get(File, source.file_id)
+    return file is not None and file.deleted_at is None and _file_readable(session, actor, file)
+
+
 def _visible(session: Session, actor: Actor) -> list[KnowledgeSource]:
     rows = session.execute(
-        select(KnowledgeSource, File)
-        .join(File, File.id == KnowledgeSource.file_id)
+        select(KnowledgeSource)
         .where(KnowledgeSource.tenant_id == actor.tenant.id, KnowledgeSource.deleted_at.is_(None))
-        .where(File.deleted_at.is_(None))
         .order_by(KnowledgeSource.updated_at.desc())
-    ).all()
-    return [source for source, file in rows if _file_readable(session, actor, file)]
+    ).scalars()
+    return [source for source in rows if _readable(session, actor, source)]
 
 
 @router.get("/tenants/{tenant_id}/knowledge-sources", summary="Knowledge sources made from files you can read")
@@ -110,7 +122,8 @@ def list_sources(tenant_id: str, principal: Authenticated, state: State) -> list
 
 
 class SourceIn(BaseModel):
-    file_id: str
+    file_id: str | None = None
+    connection_id: str | None = None
 
 
 @router.post(
@@ -124,6 +137,23 @@ def create_source(
         session,
         actor,
     ):
+        if body.connection_id:
+            connection = session.get(Connection, decode("connection", body.connection_id))
+            if connection is None or connection.tenant_id != actor.tenant.id or connection.status == "revoked":
+                raise ApiError(404, "NOT_FOUND", "Not found.")
+            connector = catalog.get(connection.connector_id)
+            if connection.owner_membership_id != actor.membership.id or connector is None or not connector.sync_tool:
+                raise validation(
+                    "Only your own connected accounts that support sync can be knowledge.",
+                    data={"field": "connection_id"},
+                )
+            source = service.create_connector_source(
+                session, actor, connection, f"{connector.name}: {connection.name}"[:200]
+            )
+            response.status_code = 201
+            return _out(session, source)
+        if not body.file_id:
+            raise validation("Choose a file or a connection.", data={"field": "file_id"})
         file = load(session, File, actor, body.file_id, "file", lock=True)
         extra = {"read", "use"} if file.project_id and file.project_id in project_ids_for(session, actor) else set()
         require(session, actor, "use", "file", file, extra)
@@ -152,14 +182,13 @@ def create_source(
         return _out(session, source)
 
 
-def _load_source(session: Session, actor: Actor, source_id: str) -> tuple[KnowledgeSource, File]:
+def _load_source(session: Session, actor: Actor, source_id: str) -> tuple[KnowledgeSource, File | None]:
     source = session.get(KnowledgeSource, decode("knowledge_source", source_id), with_for_update=True)
     if source is None or source.tenant_id != actor.tenant.id or source.deleted_at is not None:
         raise ApiError(404, "NOT_FOUND", "Not found.")
-    file = session.get(File, source.file_id)
-    if file is None or file.deleted_at is not None or not _file_readable(session, actor, file):
+    if not _readable(session, actor, source):
         raise ApiError(404, "NOT_FOUND", "Not found.")
-    return source, file
+    return source, session.get(File, source.file_id) if source.file_id else None
 
 
 @router.get("/tenants/{tenant_id}/knowledge-sources/{source_id}", summary="Knowledge source with ingestion status")
@@ -190,8 +219,8 @@ def delete_source(tenant_id: str, source_id: str, principal: Authenticated, stat
         actor,
     ):
         source, file = _load_source(session, actor, source_id)
-        if source.owner_membership_id != actor.membership.id and "edit" not in policy.allowed_actions(
-            session, actor, "file", file
+        if source.owner_membership_id != actor.membership.id and (
+            file is None or "edit" not in policy.allowed_actions(session, actor, "file", file)
         ):
             raise ApiError(403, "FORBIDDEN", "Only the person who added it or an editor of the file can remove it.")
         source.deleted_at = utcnow()
