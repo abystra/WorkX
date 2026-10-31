@@ -10,7 +10,7 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 
 | ID | Capability | Phase | Impl | Tests | Real | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| B-01 | Monorepo, CI, contracts pipeline | P-01 | ⬜ | ⬜ | n/a | |
+| B-01 | Monorepo, CI, contracts pipeline | P-01 | ✅ | ✅ | n/a | uv workspace, import-linter, OpenAPI check, tests on real PG. `.github/workflows/ci.yml` written but not yet run on GitHub |
 | B-02 | Identity: OIDC login, sessions, revocation | P-02 | ⬜ | ⬜ | ⬜ | Real: Keycloak |
 | B-03 | Tenancy: personal provisioning, orgs, memberships, roles | P-02 | ⬜ | ⬜ | n/a | |
 | B-04 | Invitations with email outbox | P-02 | ⬜ | ⬜ | ⬜ | Real: SMTP |

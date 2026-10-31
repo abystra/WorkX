@@ -1,0 +1,48 @@
+# Part 12 §3 gates: lint, types, import contracts, OpenAPI freshness, tests on real PostgreSQL; web checks.
+name: ci
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["54329:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      WORKX_TEST_OWNER_URL: postgresql+psycopg://workx_owner:workx_owner_dev@127.0.0.1:54329/postgres
+      WORKX_TEST_APP_URL: postgresql+psycopg://workx_app:workx_app_dev@127.0.0.1:54329/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Create database roles
+        env:
+          PGPASSWORD: postgres
+        run: scripts/dev/pg-roles.sql.sh | psql -h 127.0.0.1 -p 54329 -U postgres -v ON_ERROR_STOP=1
+      - run: uv sync --frozen
+      - run: scripts/check.sh backend
+
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm test && pnpm build

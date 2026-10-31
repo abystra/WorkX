@@ -1,0 +1,81 @@
+# uv workspace root (docs/architecture/12-REPOSITORY.md). Python services live under services/ and runtime/.
+[project]
+name = "workx-workspace"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["workx"]
+
+[tool.uv.sources]
+workx = { workspace = true }
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["services/workx"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-timeout>=2.3",
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "import-linter>=2.1",
+  "types-PyYAML",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["services/workx/src", "services/workx/tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = [
+  "S101",   # assert is fine in tests
+  "RUF012", # SQLAlchemy/pydantic class attributes
+]
+
+[tool.ruff.lint.per-file-ignores]
+"services/workx/tests/**" = ["S105", "S106", "S311", "S603"]
+"services/workx/migrations/**" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+mypy_path = "services/workx/src"
+explicit_package_bases = true
+exclude = ["services/workx/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["authlib.*", "importlinter.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["services/workx/tests"]
+timeout = 120
+addopts = "-ra"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning"]
+
+# Dependency direction (Part 12 §3). Checked in CI with `uv run lint-imports`.
+[tool.importlinter]
+root_package = "workx"
+
+[[tool.importlinter.contracts]]
+name = "Layers: entrypoints > trusted > domains > platform > core"
+type = "layers"
+layers = [
+  "workx.entrypoints",
+  "workx.trusted",
+  "workx.domains",
+  "workx.platform",
+  "workx.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domains never import the trusted zone"
+type = "forbidden"
+source_modules = ["workx.domains", "workx.platform", "workx.core"]
+forbidden_modules = ["workx.trusted"]
