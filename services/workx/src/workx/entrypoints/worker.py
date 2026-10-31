@@ -18,6 +18,7 @@ RECONCILE_EVERY_MINUTES = 5
 
 def load_handlers() -> None:
     """Importing handler modules registers them. Each phase adds its modules here."""
+    import workx.domains.runtime.jobs
     import workx.domains.tenancy.jobs  # noqa: F401
 
 
@@ -35,7 +36,8 @@ def schedule_reconcile(ctx: jobs.JobContext, now: datetime | None = None) -> Non
     now = now or datetime.now(UTC)
     bucket = now.replace(second=0, microsecond=0, minute=now.minute - now.minute % RECONCILE_EVERY_MINUTES)
     with ctx.db.transaction() as session:
-        jobs.enqueue(session, "reconcile", {}, dedupe_key=f"reconcile:{bucket.isoformat()}", max_attempts=1)
+        for kind in ("reconcile", "reconcile_runtime"):
+            jobs.enqueue(session, kind, {}, dedupe_key=f"{kind}:{bucket.isoformat()}", max_attempts=1)
 
 
 def run(*, once: bool = False, idle_sleep: float = 1.0) -> int:

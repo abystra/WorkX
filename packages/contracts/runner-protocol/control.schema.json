@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workx.example/contracts/runner-protocol/control.schema.json",
+  "title": "Control message (protocol v1)",
+  "description": "One NDJSON line on the Runner's stdin, sent by the orchestrator.",
+  "type": "object",
+  "required": ["type"],
+  "oneOf": [
+    { "properties": { "type": { "const": "cancel" } } },
+    { "required": ["approval_id", "decision"], "properties": { "type": { "const": "approval" }, "approval_id": { "type": "string" }, "decision": { "enum": ["approved", "rejected"] } } }
+  ]
+}

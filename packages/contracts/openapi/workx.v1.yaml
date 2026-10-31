@@ -1883,6 +1883,223 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/events:
+    get:
+      tags:
+      - runtime
+      summary: 'Task events (JSON, or SSE with Accept: text/event-stream)'
+      operationId: task_events_api_v1_tenants__tenant_id__tasks__task_id__events_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: after
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: After
+      - name: Last-Event-ID
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Last-Event-Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/retry:
+    post:
+      tags:
+      - runtime
+      summary: Run a finished task again
+      operationId: retry_api_v1_tenants__tenant_id__tasks__task_id__retry_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+                title: Response Retry Api V1 Tenants  Tenant Id  Tasks  Task Id  Retry Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/approvals:
+    get:
+      tags:
+      - runtime
+      summary: Approval requests for a task
+      operationId: approvals_api_v1_tenants__tenant_id__tasks__task_id__approvals_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApprovalOut'
+                title: Response Approvals Api V1 Tenants  Tenant Id  Tasks  Task Id  Approvals Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/tasks/{task_id}/approvals/{approval_id}/decision:
+    post:
+      tags:
+      - runtime
+      summary: Approve or reject an action
+      operationId: decide_api_v1_tenants__tenant_id__tasks__task_id__approvals__approval_id__decision_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: approval_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Approval Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/budgets:
+    get:
+      tags:
+      - runtime
+      summary: Token budgets
+      operationId: get_budget_api_v1_tenants__tenant_id__budgets_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetIn'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - runtime
+      summary: Set token budgets (owners and admins)
+      operationId: put_budget_api_v1_tenants__tenant_id__budgets_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetIn'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -2072,6 +2289,32 @@ components:
           title: Add Skill
       type: object
       title: AgentPatch
+    ApprovalOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        tool:
+          type: string
+          title: Tool
+        summary:
+          type: string
+          title: Summary
+        status:
+          type: string
+          title: Status
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+      type: object
+      required:
+      - id
+      - tool
+      - summary
+      - status
+      - expires_at
+      title: ApprovalOut
     AuditOut:
       properties:
         id:
@@ -2278,6 +2521,34 @@ components:
           title: Enabled
       type: object
       title: AutomationPatch
+    BudgetIn:
+      properties:
+        monthly_token_limit:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Monthly Token Limit
+        per_task_token_limit:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Per Task Token Limit
+      type: object
+      title: BudgetIn
+    DecisionIn:
+      properties:
+        decision:
+          type: string
+          enum:
+          - approve
+          - reject
+          title: Decision
+      type: object
+      required:
+      - decision
+      title: DecisionIn
     DepartmentIn:
       properties:
         name:

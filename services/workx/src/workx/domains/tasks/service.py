@@ -193,6 +193,10 @@ def request_cancel(session: Session, actor: Actor, task: Task) -> None:
     if task.status in TERMINAL:
         raise conflict("INVALID_STATE", "This task has already finished.", {"status": task.status})
     task.cancel_requested_at = utcnow()
+    # Gateways reject the running Attempt's tickets from now on (Part 4 §10.1); the orchestrator stops the Runner.
+    from workx.domains.runtime.leases import revoke_for_task
+
+    revoke_for_task(session, task.id)
     if task.status == "queued":
         task.status = "cancelled"
         task.finished_at = utcnow()

@@ -33,3 +33,23 @@ def test_import_contracts_catch_domain_importing_trusted(tmp_path: Path) -> None
     result = _lint_imports(tmp_path, src)
     assert result.returncode != 0
     assert "workx.domains.leaky" in result.stdout
+
+
+def test_runner_never_imports_the_control_plane() -> None:
+    """runtime/runner runs inside the sandbox and depends only on the protocol (Part 12 §3)."""
+    import re
+
+    offenders = []
+    for path in (REPO_ROOT / "runtime" / "runner" / "src").rglob("*.py"):
+        for line in path.read_text().splitlines():
+            if re.match(r"\s*(from|import)\s+workx(\.|\s|$)", line):
+                offenders.append(f"{path.name}: {line.strip()}")
+    assert not offenders, offenders
+
+
+def test_runner_protocol_schemas_are_valid_json() -> None:
+    import json
+
+    for path in (REPO_ROOT / "packages" / "contracts" / "runner-protocol").glob("*.schema.json"):
+        schema = json.loads(path.read_text())
+        assert schema["$schema"].startswith("https://json-schema.org/") and schema["title"]

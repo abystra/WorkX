@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workx.example/contracts/runner-protocol/frame.schema.json",
+  "title": "Runner frame (protocol v1)",
+  "description": "One NDJSON line on the Runner's stdout. The orchestrator rejects frames whose attempt_id or fence is not current (Part 4 §7). runner_event_id makes replays idempotent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runner_event_id", "attempt_id", "fence", "type", "payload"],
+  "properties": {
+    "runner_event_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "attempt_id": { "type": "string" },
+    "fence": { "type": "integer" },
+    "type": {
+      "enum": ["run.started", "assistant.delta", "assistant.message", "tool.started", "tool.finished", "approval.requested", "auth.required", "artifact.staged", "run.usage", "run.finished", "run.error"]
+    },
+    "payload": { "type": "object" }
+  },
+  "$defs": {
+    "run.finished": { "type": "object", "required": ["reason"], "properties": { "reason": { "enum": ["completed", "cancelled", "max_turns", "wall_time", "approval_rejected", "needs_auth", "error"] }, "usage": { "type": "object" } } }
+  }
+}

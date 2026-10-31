@@ -92,6 +92,13 @@ def registered() -> dict[str, Handler]:
     return dict(_handlers)
 
 
+def subscribe(topic: str, kind: str) -> None:
+    """Fan an outbox topic out to a job kind handled by another process (e.g. the orchestrator's run_task)."""
+    _subscriptions.setdefault(topic, [])
+    if kind not in _subscriptions[topic]:
+        _subscriptions[topic].append(kind)
+
+
 def enqueue(
     session: Session,
     kind: str,
@@ -147,7 +154,10 @@ def dispatch_outbox(db: Database, *, limit: int = 200) -> int:
         return len(events)
 
 
-def claim(db: Database, worker_id: str, *, limit: int = 10, lease: timedelta = LEASE) -> list[Job]:
+def claim(
+    db: Database, worker_id: str, *, kinds: tuple[str, ...] | None = None, limit: int = 10, lease: timedelta = LEASE
+) -> list[Job]:
+    """Claims ready jobs, optionally only of ``kinds`` (each process claims only what it can handle)."""
     with db.transaction() as session:
         rows = session.execute(
             text(
@@ -156,7 +166,8 @@ def claim(db: Database, worker_id: str, *, limit: int = 10, lease: timedelta = L
                   locked_until = now() + make_interval(secs => :lease)
                 WHERE id IN (
                   SELECT id FROM jobs
-                  WHERE (status = 'queued' AND run_after <= now()) OR (status = 'running' AND locked_until < now())
+                  WHERE ((status = 'queued' AND run_after <= now()) OR (status = 'running' AND locked_until < now()))
+                    AND (CAST(:kinds AS text[]) IS NULL OR kind = ANY(CAST(:kinds AS text[])))
                   ORDER BY run_after
                   LIMIT :limit
                   FOR UPDATE SKIP LOCKED
@@ -164,7 +175,12 @@ def claim(db: Database, worker_id: str, *, limit: int = 10, lease: timedelta = L
                 RETURNING id, tenant_id, kind, payload, attempts, max_attempts
                 """
             ),
-            {"worker": worker_id, "lease": lease.total_seconds(), "limit": limit},
+            {
+                "worker": worker_id,
+                "lease": lease.total_seconds(),
+                "limit": limit,
+                "kinds": list(kinds) if kinds else None,
+            },
         ).all()
     return [Job(r.id, r.tenant_id, r.kind, r.payload, r.attempts, r.max_attempts) for r in rows]
 
@@ -209,9 +225,24 @@ def run_job(ctx: JobContext, job: Job, worker_id: str) -> str:
     return _finish(ctx.db, job, worker_id, None)
 
 
+def complete(db: Database, job: Job, worker_id: str, result: str) -> str:
+    """For processes that handle a job without a registered handler: 'succeeded', 'defer' (retry soon without
+    counting an attempt) or 'error' (normal backoff and dead-lettering)."""
+    if result == "defer":
+        with db.transaction() as session:
+            row = session.get(JobRow, job.id, with_for_update=True)
+            if row is None or row.locked_by != worker_id:
+                return "lost"
+            row.status, row.locked_by, row.locked_until = "queued", None, None
+            row.attempts = max(row.attempts - 1, 0)
+            row.run_after = utcnow() + timedelta(seconds=5)
+            return "queued"
+    return _finish(db, job, worker_id, None if result == "succeeded" else result)
+
+
 def run_once(ctx: JobContext, worker_id: str, *, limit: int = 10) -> dict[str, int]:
     counts = {"dispatched": dispatch_outbox(ctx.db)}
-    for job in claim(ctx.db, worker_id, limit=limit):
+    for job in claim(ctx.db, worker_id, kinds=tuple(_handlers), limit=limit):
         status = run_job(ctx, job, worker_id)
         counts[status] = counts.get(status, 0) + 1
     return counts

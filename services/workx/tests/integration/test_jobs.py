@@ -117,10 +117,13 @@ def test_expired_lease_is_taken_over(
     assert jobs.run_job(ctx, claimed, "crashed-worker") == "lost"
 
 
-def test_unknown_kind_dead_letters(db: Database, ctx: jobs.JobContext, isolated_queue: None) -> None:
+def test_workers_claim_only_kinds_they_handle(db: Database, ctx: jobs.JobContext, isolated_queue: None) -> None:
+    """run_task jobs belong to the orchestrator: the worker must leave them (and unknown kinds) queued."""
     with db.transaction() as session:
-        jobs.enqueue(session, "no.such.handler", {}, max_attempts=1)
-    assert jobs.run_once(ctx, "w1").get("dead") == 1
+        job_id = jobs.enqueue(session, "run_task", {"task_id": "x", "tenant_id": "y"})
+    assert jobs.run_once(ctx, "w1") == {"dispatched": 0}
+    [claimed] = jobs.claim(db, "orchestrator", kinds=("run_task",))
+    assert claimed.id == job_id
 
 
 def test_reconciler_expires_invitations(

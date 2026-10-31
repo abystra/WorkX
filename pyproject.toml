@@ -3,16 +3,17 @@
 name = "workx-workspace"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["workx"]
+dependencies = ["workx", "workx-runner"]
 
 [tool.uv.sources]
 workx = { workspace = true }
+workx-runner = { workspace = true }
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["services/workx"]
+members = ["services/workx", "runtime/runner"]
 
 [dependency-groups]
 dev = [
@@ -27,7 +28,7 @@ dev = [
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-src = ["services/workx/src", "services/workx/tests"]
+src = ["services/workx/src", "services/workx/tests", "runtime/runner/src"]
 
 [tool.ruff.lint]
 # Chinese copy uses full-width punctuation on purpose.
@@ -40,6 +41,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "services/workx/tests/**" = ["S105", "S106", "S311", "S603"]
+"runtime/runner/tests/**" = ["S105", "S106"]
 "services/workx/migrations/**" = ["E501"]
 
 [tool.mypy]
@@ -47,16 +49,16 @@ python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
-mypy_path = "services/workx/src"
+mypy_path = ["services/workx/src", "runtime/runner/src"]
 explicit_package_bases = true
 exclude = ["services/workx/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["importlinter.*"]
+module = ["importlinter.*", "claude_agent_sdk.*", "e2b.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["services/workx/tests"]
+testpaths = ["services/workx/tests", "runtime/runner/tests"]
 timeout = 120
 addopts = "-ra"
 # TestClient doubles as the OIDC HTTP client in tests; its httpx deprecation notices are harness-only.

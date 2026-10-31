@@ -344,6 +344,50 @@ class FileIn(BaseModel):
     project_id: str | None = None
 
 
+def store_text_file(
+    session: Session,
+    *,
+    tenant_id: uuid.UUID,
+    owner_membership_id: uuid.UUID,
+    name: str,
+    kind: str,
+    media_type: str,
+    content: str,
+    project_id: uuid.UUID | None = None,
+    source_task_id: uuid.UUID | None = None,
+) -> File:
+    """Creates a file with one text version. Used by the API and by artifact ingestion."""
+    import hashlib
+
+    file = File(
+        id=ids.uuid7(),
+        tenant_id=tenant_id,
+        name=clean_name(name, maximum=200),
+        kind=kind,
+        media_type=media_type,
+        project_id=project_id,
+        source_task_id=source_task_id,
+        owner_membership_id=owner_membership_id,
+    )
+    session.add(file)
+    session.flush()
+    data = content.encode()
+    version = FileVersion(
+        id=ids.uuid7(),
+        tenant_id=tenant_id,
+        file_id=file.id,
+        version_no=1,
+        size_bytes=len(data),
+        sha256=hashlib.sha256(data).digest(),
+        text_content=content,
+        created_by_membership_id=owner_membership_id,
+    )
+    session.add(version)
+    session.flush()
+    file.current_version_id = version.id
+    return file
+
+
 def create_text_file(
     session: Session,
     actor: Actor,
@@ -355,35 +399,17 @@ def create_text_file(
     project_id: uuid.UUID | None = None,
     source_task_id: uuid.UUID | None = None,
 ) -> File:
-    file = File(
-        id=ids.uuid7(),
+    return store_text_file(
+        session,
         tenant_id=actor.tenant.id,
-        name=clean_name(name, maximum=200),
+        owner_membership_id=actor.membership.id,
+        name=name,
         kind=kind,
         media_type=media_type,
+        content=content,
         project_id=project_id,
         source_task_id=source_task_id,
-        owner_membership_id=actor.membership.id,
     )
-    session.add(file)
-    session.flush()
-    import hashlib
-
-    data = content.encode()
-    version = FileVersion(
-        id=ids.uuid7(),
-        tenant_id=actor.tenant.id,
-        file_id=file.id,
-        version_no=1,
-        size_bytes=len(data),
-        sha256=hashlib.sha256(data).digest(),
-        text_content=content,
-        created_by_membership_id=actor.membership.id,
-    )
-    session.add(version)
-    session.flush()
-    file.current_version_id = version.id
-    return file
 
 
 @router.post("/tenants/{tenant_id}/files", status_code=201, summary="Create a text file in the Library")

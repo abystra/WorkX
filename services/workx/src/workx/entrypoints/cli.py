@@ -58,6 +58,12 @@ def main(argv: list[str] | None = None) -> int:
     jr = jb_sub.add_parser("retry", help="requeue a dead job")
     jr.add_argument("job_id")
 
+    sub.add_parser("orchestrator", help="run the orchestrator (claims queued tasks, supervises attempts)")
+    for name, port in (("model-gateway", 8200), ("tool-gateway", 8210), ("dev-crm", 8300)):
+        gateway = sub.add_parser(name, help=f"run the {name}")
+        gateway.add_argument("--host", default="127.0.0.1")
+        gateway.add_argument("--port", type=int, default=port)
+
     dev = sub.add_parser("dev-oidc", help="run the local development OIDC issuer (never in production)")
     dev.add_argument("--host", default="127.0.0.1")
     dev.add_argument("--port", type=int, default=8100)
@@ -107,6 +113,27 @@ def main(argv: list[str] | None = None) -> int:
         ok = jobs.retry(database, uuid.UUID(args.job_id))
         print("requeued" if ok else "not a dead job")
         return 0 if ok else 1
+
+    if args.command == "orchestrator":
+        from workx.core.logging import configure
+        from workx.core.settings import OrchestratorSettings
+        from workx.entrypoints.orchestrator import run as run_orchestrator
+
+        configure(OrchestratorSettings().log_level)
+        return run_orchestrator()
+
+    if args.command in ("model-gateway", "tool-gateway", "dev-crm"):
+        import uvicorn
+
+        from workx.entrypoints import gateways
+
+        app = {
+            "model-gateway": gateways.model_gateway,
+            "tool-gateway": gateways.tool_gateway,
+            "dev-crm": gateways.dev_crm,
+        }[args.command]()
+        uvicorn.run(app, host=args.host, port=args.port)
+        return 0
 
     if args.command == "dev-oidc":
         import uvicorn

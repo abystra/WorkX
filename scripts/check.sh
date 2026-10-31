@@ -7,8 +7,8 @@ target="${1:-all}"
 
 if [ "$target" = backend ] || [ "$target" = all ]; then
   uv run ruff check .
-  uv run ruff format --check services
-  uv run mypy services/workx/src
+  uv run ruff format --check services runtime
+  uv run mypy services/workx/src runtime/runner/src
   uv run lint-imports
   uv run workx openapi --check
   uv run pytest -q

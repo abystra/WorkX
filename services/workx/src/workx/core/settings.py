@@ -82,3 +82,37 @@ class ApiSettings(BaseWorkxSettings):
         if self.is_production and not self.session_cookie_secure:
             raise ValueError("Session cookies must be Secure in staging or production")
         return self
+
+
+class ModelGatewaySettings(BaseWorkxSettings):
+    """Only this process holds the Anthropic key (decision 7: no raw model key in the sandbox)."""
+
+    anthropic_base_url: str = "https://api.anthropic.com"
+    anthropic_api_key: SecretStr = SecretStr("")
+    upstream_timeout_seconds: float = 600.0
+
+
+class ToolGatewaySettings(BaseWorkxSettings):
+    # Platform-operated test CRM connector (class A, Part 6). Real tenant connectors resolve via the broker (P-07).
+    crm_base_url: str = "http://127.0.0.1:8300"
+    crm_api_key: SecretStr = SecretStr("")
+    approval_ttl_minutes: int = 10
+    max_result_chars: int = 50_000
+    web_fetch_max_bytes: int = 2_000_000
+
+
+class OrchestratorSettings(BaseWorkxSettings):
+    # Tier → model ID for this deployment (decision D-01). Configuration, never code: WORKX_MODEL_TIERS='{"auto": …}'.
+    model_tiers: dict[str, str] = Field(default_factory=dict)
+    sandbox_provider: str = "local_process"
+    e2b_api_key: SecretStr = SecretStr("")
+    e2b_template: str = "workx-runtime"
+    runner_engine: str = "claude-agent-sdk"
+    model_gateway_url: str = "http://127.0.0.1:8200"
+    tool_gateway_url: str = "http://127.0.0.1:8210"
+    max_turns: int = 40
+    wall_seconds: int = 1800
+    lease_seconds: int = 60
+    heartbeat_seconds: float = 15.0
+    max_concurrent_attempts_per_tenant: int = 2
+    release_id: str = "dev"

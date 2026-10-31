@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workx.example/contracts/runner-protocol/runspec.schema.json",
+  "title": "RunSpec (protocol v1)",
+  "description": "Written by the orchestrator into the sandbox before the Runner starts (Part 4 §6). Contains no secrets: tickets arrive in the Runner's environment and are short-lived, scoped and revocable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "tenant_id", "task_id", "attempt_id", "fencing_token", "agent_version_id", "model", "system_prompt", "input", "cwd", "outputs_dir", "model_gateway", "tool_gateway", "limits", "engine"],
+  "properties": {
+    "protocol_version": { "const": "1" },
+    "tenant_id": { "type": "string", "pattern": "^ten_" },
+    "task_id": { "type": "string", "pattern": "^tsk_" },
+    "attempt_id": { "type": "string", "pattern": "^att_" },
+    "workx_session_id": { "type": "string" },
+    "fencing_token": { "type": "integer", "minimum": 1 },
+    "release_id": { "type": "string" },
+    "agent_version_id": { "type": "string" },
+    "engine": { "enum": ["claude-agent-sdk", "messages"], "description": "claude-agent-sdk in production; messages is a minimal loop for development and tests." },
+    "model": { "type": "string", "minLength": 1 },
+    "system_prompt": { "type": "string" },
+    "input": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": { "type": "string" },
+        "history": { "type": "array", "items": { "type": "object", "required": ["role", "content"], "properties": { "role": { "enum": ["user", "assistant"] }, "content": { "type": "string" } } } }
+      }
+    },
+    "cwd": { "type": "string" },
+    "outputs_dir": { "type": "string" },
+    "skills": { "type": "array", "items": { "type": "string" } },
+    "plugins": { "type": "array", "items": { "type": "string" } },
+    "model_gateway": { "type": "object", "required": ["base_url", "ticket_env"], "properties": { "base_url": { "type": "string" }, "ticket_env": { "type": "string" } } },
+    "tool_gateway": { "type": "object", "required": ["url", "ticket_env"], "properties": { "url": { "type": "string" }, "ticket_env": { "type": "string" } } },
+    "completed_operations": { "type": "array", "items": { "type": "object" } },
+    "limits": {
+      "type": "object",
+      "required": ["max_turns", "wall_seconds"],
+      "properties": { "max_turns": { "type": "integer", "minimum": 1 }, "wall_seconds": { "type": "integer", "minimum": 1 }, "max_output_bytes": { "type": "integer" } }
+    }
+  }
+}
