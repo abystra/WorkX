@@ -2,6 +2,7 @@ import type { WorkspaceCtx } from './workspace';
 import { useWs } from './workspace';
 import { NotFound } from './states';
 import { Home } from '@/features/home/Home';
+import { Settings } from '@/features/settings/Settings';
 
 /** Document title per page (prototype render()). */
 export function pageTitle(ctx: WorkspaceCtx): string {
@@ -22,6 +23,9 @@ export function PageSwitch() {
   switch (ctx.page) {
     case 'home':
       return <Home />;
+    case 'team':
+    case 'settings':
+      return <Settings />;
     default:
       return <NotFound onHome={() => ctx.nav('home')} />;
   }
