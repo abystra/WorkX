@@ -5,7 +5,8 @@
 # Web: http://127.0.0.1:5174 (proxies /api to the API on :8000). Sign in with any email at the dev issuer.
 # Model: with WORKX_ANTHROPIC_API_KEY and WORKX_MODEL_TIERS set, tasks use the real Anthropic API and the
 # Claude Agent SDK engine; otherwise a scripted development model answers (clearly fake) via the messages engine.
-# Test CRM: connect it in the app (Ecosystem › CRM) with the key "dev-crm-key" (or WORKX_DEV_CRM_KEY).
+# Test CRM: connect it in the app (Settings › Connections) with the key "dev-crm-key" (or WORKX_DEV_CRM_KEY).
+# Test OAuth + remote MCP provider (Notes): connect it in the app; the connector is installed pointing at :8310.
 # Logs and pid files: .local/run/. Requires scripts/dev/pg.sh start and a migrated database.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -40,6 +41,7 @@ case "${1:-start}" in
     fi
     start_one dev-oidc uv run workx dev-oidc --port 8100
     start_one dev-crm uv run workx dev-crm --port 8300
+    start_one dev-notes uv run workx dev-notes --port 8310
     start_one broker uv run workx broker --port 8220
     start_one api uv run workx api --port 8000
     start_one worker uv run workx worker
@@ -50,7 +52,7 @@ case "${1:-start}" in
     echo "Open $WEB"
     ;;
   stop)
-    for name in web orchestrator tool-gateway model-gateway worker api broker dev-crm dev-oidc dev-model; do
+    for name in web orchestrator tool-gateway model-gateway worker api broker dev-notes dev-crm dev-oidc dev-model; do
       if [ -f "$RUN/$name.pid" ]; then
         kill -- "-$(cat "$RUN/$name.pid")" 2>/dev/null || kill "$(cat "$RUN/$name.pid")" 2>/dev/null || true
         rm -f "$RUN/$name.pid"
@@ -59,7 +61,7 @@ case "${1:-start}" in
     done
     ;;
   status)
-    for name in dev-oidc dev-model dev-crm broker api worker model-gateway tool-gateway orchestrator web; do
+    for name in dev-oidc dev-model dev-crm dev-notes broker api worker model-gateway tool-gateway orchestrator web; do
       if [ -f "$RUN/$name.pid" ] && kill -0 "$(cat "$RUN/$name.pid")" 2>/dev/null; then echo "$name running"; else echo "$name stopped"; fi
     done
     ;;

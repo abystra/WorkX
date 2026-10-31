@@ -119,6 +119,7 @@ class ModelGatewaySettings(BaseWorkxSettings):
 
 class ToolGatewaySettings(TrustedSettings):
     crm_base_url: str = "http://127.0.0.1:8300"
+    feishu_base_url: str = "https://open.feishu.cn"
     approval_ttl_minutes: int = 10
     max_result_chars: int = 50_000
     web_fetch_max_bytes: int = 2_000_000

@@ -45,6 +45,14 @@ def dev_crm() -> FastAPI:
     return create_dev_crm_app(key, environment=BaseWorkxSettings().environment)
 
 
+def dev_notes() -> FastAPI:
+    """Test OAuth provider + remote MCP server. Install the Notes connector with base_url http://127.0.0.1:8310/mcp."""
+    from workx.core.settings import BaseWorkxSettings
+    from workx.entrypoints.dev_notes import create_dev_notes_app
+
+    return create_dev_notes_app(environment=BaseWorkxSettings().environment)
+
+
 def dev_model() -> FastAPI:
     import os
 

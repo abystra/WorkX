@@ -61,7 +61,9 @@ class Credential(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
     tenant_id: Mapped[uuid.UUID]
-    connection_id: Mapped[uuid.UUID]
+    # Either a connection's credential or an installation's (OAuth client secret); never both (migration 0008).
+    connection_id: Mapped[uuid.UUID | None]
+    installation_connector_id: Mapped[str | None]
     usage_class: Mapped[str]
     kind: Mapped[str]
     active_version_id: Mapped[uuid.UUID | None]

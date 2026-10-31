@@ -33,12 +33,13 @@ from workx.core.redaction import redact
 from workx.core.settings import ToolGatewaySettings
 from workx.domains.connections import catalog
 from workx.domains.connections.catalog import TOOL_CONNECTOR
-from workx.domains.connections.models import Connection, Credential
+from workx.domains.connections.models import AuthorizationRequest, Connection, ConnectorInstallation, Credential
 from workx.domains.runtime.models import Approval, ToolOperation
 from workx.domains.usage import service as usage
 from workx.trusted.broker import tickets
 from workx.trusted.broker.app import vault_for
-from workx.trusted.tool_gateway.tools import REGISTRY, Tool, ToolFailure
+from workx.trusted.credentials import oauth
+from workx.trusted.tool_gateway.tools import REGISTRY, Access, NeedsAuth, Tool, ToolFailure
 
 PROTOCOL_VERSION = "2025-06-18"
 
@@ -132,8 +133,34 @@ def create_tool_gateway_app(
             },
         )
 
-    def credential_for(lease: tickets.Lease, tool: Tool) -> tuple[str | None, dict[str, Any] | None]:
-        """(secret, None) when usable; (None, MCP error result) otherwise. Checked on every call (Seq 4, Seq 8)."""
+    def needs_auth(lease: tickets.Lease, connection_id: uuid.UUID, connector_id: str, reason: str) -> dict[str, Any]:
+        """The user's token stopped working: the connection waits for re-authorization and the attempt pauses
+        (Part 4 §11 mid-run). The orchestrator sees the request and stops the run as ``needs_auth``."""
+        with db.transaction(tenant_id=lease.tenant_id) as session:
+            connection = session.get(Connection, connection_id, with_for_update=True)
+            assert connection is not None
+            if connection.status == "active":
+                connection.status, connection.last_error = "needs_auth", reason[:200]
+            request = AuthorizationRequest(
+                id=ids.uuid7(),
+                tenant_id=lease.tenant_id,
+                task_id=lease.task_id,
+                attempt_id=lease.attempt_id,
+                connector_id=connector_id,
+                target_membership_id=connection.owner_membership_id,
+            )
+            session.add(request)
+        return _text_result(
+            "The user needs to authorize this connection again before it can be used.",
+            error=True,
+            structured={
+                "code": "NEEDS_AUTH",
+                "authorization_request_id": ids.encode("authorization_request", request.id),
+            },
+        )
+
+    def credential_for(lease: tickets.Lease, tool: Tool) -> tuple[Access | None, dict[str, Any] | None]:
+        """(access, None) when usable; (None, MCP error result) otherwise. Checked on every call (Seq 4, Seq 8)."""
         connector = catalog.get(TOOL_CONNECTOR.get(tool.name, ""))
         if connector is None or connector.auth == "none":
             return None, None
@@ -150,26 +177,37 @@ def create_tool_gateway_app(
                 return None, _text_result(
                     "The connection for this tool is no longer available.", error=True, structured={"code": code}
                 )
-            kind = "api_key" if connector.auth == "api_key" else "oauth_access"
-            credential = session.execute(
-                select(Credential).where(Credential.connection_id == connection.id, Credential.kind == kind)
-            ).scalar_one_or_none()
-            if credential is None:
-                return None, _text_result(
-                    "The connection has no credential.", error=True, structured={"code": "NEEDS_AUTH"}
-                )
+            installation = session.get(ConnectorInstallation, (lease.tenant_id, connector.id))
+            config = dict(installation.config or {}) if installation else {}
+            connection_id = connection.id
             try:
-                secret, _ = vault.read(session, credential)
+                if connector.auth == "oauth":
+                    token = oauth.access_token(session, vault, connection, connector, client)
+                else:
+                    credential = session.execute(
+                        select(Credential).where(
+                            Credential.connection_id == connection.id, Credential.kind == "api_key"
+                        )
+                    ).scalar_one_or_none()
+                    if credential is None:
+                        raise ApiError(409, "NEEDS_AUTH", "The connection has no credential.")
+                    token, _ = vault.read(session, credential)
+            except oauth.OAuthFailure as exc:
+                failure: str | None = str(exc)
             except ApiError:
                 return None, _text_result(
                     "The connection has no usable credential.", error=True, structured={"code": "NEEDS_AUTH"}
                 )
-            connection.last_used_at = utcnow()
-            return secret, None
+            else:
+                failure = None
+                connection.last_used_at = utcnow()
+        if failure is not None:
+            return None, needs_auth(lease, connection_id, connector.id, failure)
+        return Access(token, config), None
 
     def execute(lease: tickets.Lease, tool: Tool, args: dict[str, Any]) -> dict[str, Any]:
         clean = {k: v for k, v in args.items() if not k.startswith("_")}
-        secret, refused = credential_for(lease, tool)
+        access, refused = credential_for(lease, tool)
         if refused is not None:
             return refused
         key = operation_key(lease.task_id, tool, clean)
@@ -210,12 +248,15 @@ def create_tool_gateway_app(
                             error=True,
                             structured={"code": "OPERATION_IN_DOUBT"},
                         )
+        revoked_mid_call = False
         try:
-            outcome = redact(tool.run(settings, client, clean, secret))
+            outcome = redact(tool.run(settings, client, clean, access))
             text = json.dumps(outcome, ensure_ascii=False)
             if len(text) > settings.max_result_chars:
                 outcome = {"truncated": True, "text": text[: settings.max_result_chars]}
             status, error = "succeeded", None
+        except NeedsAuth as exc:
+            outcome, status, error, revoked_mid_call = {"error": str(exc)}, "failed", "needs_auth", True
         except ToolFailure as exc:
             outcome, status, error = {"error": str(exc)}, "failed", str(exc)
         except httpx.TimeoutException:
@@ -241,6 +282,9 @@ def create_tool_gateway_app(
                 attempt_id=lease.attempt_id,
                 data={"tool": tool.name, "status": status},
             )
+        if revoked_mid_call:
+            connection_ref = (lease.scopes.get("connections") or {})[tool.name]
+            return needs_auth(lease, uuid.UUID(connection_ref), TOOL_CONNECTOR[tool.name], "rejected_by_provider")
         return _text_result(outcome, error=status != "succeeded")
 
     def handle(lease: tickets.Lease, message: dict[str, Any]) -> dict[str, Any] | None:

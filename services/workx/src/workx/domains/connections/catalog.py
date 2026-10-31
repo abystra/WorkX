@@ -16,7 +16,7 @@ class OAuthEndpoints:
     revoke_url: str | None = None
     scopes: tuple[str, ...] = ()
     # Feishu's v2 token endpoint takes JSON and app credentials in the body (client_secret_post).
-    token_body: str = "form"  # noqa: S105 (a request encoding, not a secret)
+    exchange_format: str = "form"
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,10 @@ class Connector:
     default_installed: bool = False
     oauth: OAuthEndpoints | None = None
     config_fields: tuple[str, ...] = field(default=())
+    # Remote MCP server (URL in the installation's ``base_url``): platform tool name → the server's tool name.
+    # Its OAuth endpoints are discovered (RFC 9728 → RFC 8414) and, without a configured client_id, the client is
+    # registered dynamically (RFC 7591).
+    remote_mcp: dict[str, str] | None = None
 
 
 CONNECTORS: dict[str, Connector] = {
@@ -50,19 +54,20 @@ CONNECTORS: dict[str, Connector] = {
                 authorize_url="https://accounts.feishu.cn/open-apis/authen/v1/authorize",
                 token_url="https://open.feishu.cn/open-apis/authen/v2/oauth/token",  # noqa: S106
                 scopes=("docx:document", "drive:drive:readonly", "offline_access"),
-                token_body="json",  # noqa: S106
+                exchange_format="json",
             ),
             config_fields=("client_id", "client_secret"),
         ),
         Connector(
             "notes",
-            "Notes (OAuth test provider)",
+            "Notes (remote MCP, OAuth)",
             "B",
             "oauth",
             "user",
             ("notes_create", "notes_list"),
-            oauth=OAuthEndpoints(authorize_url="", token_url="", scopes=("notes.write", "offline_access")),
-            config_fields=("client_id", "client_secret", "base_url"),
+            oauth=OAuthEndpoints(authorize_url="", token_url="", scopes=("notes.read", "notes.write")),
+            config_fields=("base_url", "client_id"),
+            remote_mcp={"notes_create": "create_note", "notes_list": "list_notes"},
         ),
     )
 }

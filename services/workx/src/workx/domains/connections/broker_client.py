@@ -62,6 +62,19 @@ class BrokerClient:
             "/internal/connections/destroy", {"tenant_id": str(tenant_id), "connection_id": str(connection_id)}
         )
 
+    def put_installation_secret(
+        self, *, tenant_id: uuid.UUID, connector_id: str, actor_membership_id: uuid.UUID, value: str
+    ) -> dict[str, Any]:
+        return self._post(
+            "/internal/installations/secret",
+            {
+                "tenant_id": str(tenant_id),
+                "connector_id": connector_id,
+                "actor_membership_id": str(actor_membership_id),
+                "value": value,
+            },
+        )
+
     def oauth_start(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._post("/internal/oauth/start", body)
 

@@ -38,6 +38,7 @@ class AgentOut(BaseModel):
     context: str
     model_tier: str
     skills: list[str]
+    connectors: list[str]
     knowledge_source_ids: list[str]
     task_count: int
     version: int | None
@@ -72,6 +73,7 @@ def _out(session: Any, actor: Actor, agent: Agent, actions: set[str], version: i
         context=agent.context_md,
         model_tier=agent.model_tier,
         skills=list(agent.skills),
+        connectors=list(agent.connectors),
         knowledge_source_ids=[ids.encode("knowledge_source", k) for k in agent.knowledge_source_ids],
         task_count=task_count,
         version=version,
@@ -129,6 +131,7 @@ class AgentIn(BaseModel):
     context: str = ""
     model_tier: str = "auto"
     skills: list[str] = Field(default_factory=list)
+    connectors: list[str] = Field(default_factory=list, max_length=20)
 
 
 @router.post("/tenants/{tenant_id}/agents", status_code=201, summary="Create a workmate (publishes version 1)")
@@ -159,6 +162,7 @@ class AgentPatch(BaseModel):
     model_tier: str | None = None
     skills: list[str] | None = None
     add_skill: str | None = None
+    connectors: list[str] | None = Field(default=None, max_length=20)
 
 
 @router.patch("/tenants/{tenant_id}/agents/{agent_id}", summary="Edit a workmate (runtime changes publish a version)")

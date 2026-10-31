@@ -6,18 +6,20 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 
 from workx.core import ids
-from workx.core.errors import conflict, forbidden, not_found, validation
+from workx.core.errors import ApiError, conflict, forbidden, not_found, validation
 from workx.domains.audit import service as audit
 from workx.domains.connections import catalog, resolve, service
 from workx.domains.connections.broker_client import BrokerClient
 from workx.domains.connections.models import Connection, ConnectionUsagePolicy, ConnectorInstallation
-from workx.domains.identity.auth import Authenticated, State
+from workx.domains.identity.auth import Authenticated, State, current_principal
+from workx.domains.identity.service import safe_return_to
 from workx.domains.resources import events
 from workx.domains.resources.common import decode
 from workx.domains.tenancy.api import tenant_uuid
@@ -419,3 +421,93 @@ def put_policy(
             data={"rules": len(body)},
         )
         return body
+
+
+class ClientSecretIn(BaseModel):
+    secret: str = Field(min_length=1, max_length=8192)
+
+
+@router.put(
+    "/tenants/{tenant_id}/connectors/{connector_id}/client-secret",
+    status_code=204,
+    summary="Set an OAuth connector's client secret (stored by the broker, never returned)",
+)
+def put_client_secret(
+    tenant_id: str, connector_id: str, body: ClientSecretIn, principal: Authenticated, state: State
+) -> Response:
+    connector = catalog.get(connector_id)
+    if connector is None or connector.oauth is None:
+        raise not_found()
+    tid = tenant_uuid(tenant_id)
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid) as (session, actor):
+        if not _manager_or_personal_owner(actor):
+            raise forbidden("Only owners and admins can configure connectors.")
+        if session.get(ConnectorInstallation, (tid, connector_id)) is None:
+            raise conflict("CONNECTOR_NOT_INSTALLED", "Install this connector in the workspace first.")
+        membership_id = actor.membership.id
+    broker(state).put_installation_secret(
+        tenant_id=tid, connector_id=connector_id, actor_membership_id=membership_id, value=body.secret
+    )
+    return Response(status_code=204)
+
+
+class AuthorizeIn(BaseModel):
+    return_to: str = Field(default="/", max_length=2000)
+
+
+class AuthorizeOut(BaseModel):
+    authorize_url: str
+
+
+@router.post(
+    "/tenants/{tenant_id}/connections/{connection_id}/authorize",
+    summary="Start OAuth for your connection: open the returned URL in the browser",
+)
+def authorize(
+    tenant_id: str, connection_id: str, body: AuthorizeIn, principal: Authenticated, state: State
+) -> AuthorizeOut:
+    tid = tenant_uuid(tenant_id)
+    with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid) as (session, actor):
+        connection = _load(session, actor, connection_id)
+        connector = catalog.CONNECTORS[connection.connector_id]
+        if connector.auth != "oauth":
+            raise conflict("INVALID_STATE", "This connection does not use OAuth.")
+        if connection.owner_membership_id != actor.membership.id:
+            raise forbidden("Only the person who owns this connection can authorize it.")
+        connection_uuid, membership_id = connection.id, actor.membership.id
+    started = broker(state).oauth_start(
+        {
+            "tenant_id": str(tid),
+            "connection_id": str(connection_uuid),
+            "membership_id": str(membership_id),
+            "redirect_uri": f"{state.settings.api_base_url.rstrip('/')}/api/v1/oauth/callback",
+            "return_to": safe_return_to(body.return_to),
+        }
+    )
+    return AuthorizeOut(authorize_url=str(started["authorize_url"]))
+
+
+@router.get(
+    "/oauth/callback",
+    summary="OAuth redirect target for connections (browser navigation)",
+    response_class=RedirectResponse,
+    status_code=303,
+)
+def oauth_callback(
+    request: Request, state: State, code: str | None = None, error: str | None = None, state_param: str = ""
+) -> RedirectResponse:
+    web = state.settings.public_base_url.rstrip("/")
+    oauth_state = request.query_params.get("state", state_param)
+    try:
+        principal = current_principal(request, state)
+    except Exception:
+        return RedirectResponse(f"{web}/session-expired", status_code=303)
+    try:
+        result = broker(state).oauth_complete(
+            {"state": oauth_state, "code": code, "error": error, "user_id": str(principal.user_id)}
+        )
+    except ApiError:
+        return RedirectResponse(f"{web}/?connection=invalid", status_code=303)
+    target = safe_return_to(str(result.get("return_to") or "/"))
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{web}{target}{separator}connection={result.get('status', 'failed')}", status_code=303)

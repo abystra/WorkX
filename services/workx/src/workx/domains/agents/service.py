@@ -19,9 +19,10 @@ from workx.core.orm import utcnow
 from workx.domains.agents.catalog import MODEL_TIER_IDS, normalize_skill
 from workx.domains.agents.models import Agent, AgentVersion
 from workx.domains.audit import service as audit
+from workx.domains.connections import catalog
 from workx.domains.tenancy.service import Actor, clean_name
 
-RUNTIME_FIELDS = ("instructions", "context_md", "model_tier", "skills", "knowledge_source_ids")
+RUNTIME_FIELDS = ("instructions", "context_md", "model_tier", "skills", "connectors", "knowledge_source_ids")
 MAX_TEXT = 20_000
 
 
@@ -43,6 +44,17 @@ def _skills(values: list[str]) -> list[str]:
     return result
 
 
+def _connectors(values: list[str]) -> list[str]:
+    """Connectors the workmate needs; tasks stop before starting if the initiator has not connected them."""
+    result: list[str] = []
+    for value in values:
+        if catalog.get(str(value)) is None:
+            raise validation(f"Unknown connector: {value}", data={"field": "connectors"})
+        if value not in result:
+            result.append(str(value))
+    return result
+
+
 def publish(session: Session, actor: Actor, agent: Agent) -> AgentVersion:
     number = (
         session.execute(
@@ -59,7 +71,7 @@ def publish(session: Session, actor: Actor, agent: Agent) -> AgentVersion:
         context_md=agent.context_md,
         model_tier=agent.model_tier,
         skills=list(agent.skills),
-        tool_refs=[],
+        tool_refs=[{"connector": c} for c in agent.connectors],
         knowledge_source_ids=list(agent.knowledge_source_ids),
         published_by_membership_id=actor.membership.id,
         published_at=utcnow(),
@@ -86,6 +98,7 @@ def create(session: Session, actor: Actor, body: dict[str, Any]) -> Agent:
         context_md=_text(body.get("context"), "context"),
         model_tier=model_tier,
         skills=_skills(list(body.get("skills") or [])),
+        connectors=_connectors(list(body.get("connectors") or [])),
         knowledge_source_ids=[],
     )
     session.add(agent)
@@ -126,6 +139,8 @@ def update(session: Session, actor: Actor, agent: Agent, body: dict[str, Any]) -
         agent.skills = _skills(list(body["skills"]))
     if body.get("add_skill"):
         agent.skills = _skills([*agent.skills, body["add_skill"]])
+    if "connectors" in body:
+        agent.connectors = _connectors(list(body["connectors"]))
     if "knowledge_source_ids" in body:
         agent.knowledge_source_ids = [uuid.UUID(str(v)) for v in body["knowledge_source_ids"]]
     agent.row_version += 1

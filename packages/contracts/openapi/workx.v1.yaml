@@ -2511,6 +2511,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connectors/{connector_id}/client-secret:
+    put:
+      tags:
+      - connections
+      summary: Set an OAuth connector's client secret (stored by the broker, never returned)
+      operationId: put_client_secret_api_v1_tenants__tenant_id__connectors__connector_id__client_secret_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connector Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientSecretIn'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/connections/{connection_id}/authorize:
+    post:
+      tags:
+      - connections
+      summary: 'Start OAuth for your connection: open the returned URL in the browser'
+      operationId: authorize_api_v1_tenants__tenant_id__connections__connection_id__authorize_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorizeIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthorizeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/oauth/callback:
+    get:
+      tags:
+      - connections
+      summary: OAuth redirect target for connections (browser navigation)
+      operationId: oauth_callback_api_v1_oauth_callback_get
+      parameters:
+      - name: code
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+      - name: error
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      - name: state_param
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: State Param
+      responses:
+        '303':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -2564,6 +2675,12 @@ components:
             type: string
           type: array
           title: Skills
+        connectors:
+          items:
+            type: string
+          type: array
+          maxItems: 20
+          title: Connectors
       type: object
       required:
       - name
@@ -2599,6 +2716,11 @@ components:
             type: string
           type: array
           title: Skills
+        connectors:
+          items:
+            type: string
+          type: array
+          title: Connectors
         knowledge_source_ids:
           items:
             type: string
@@ -2638,6 +2760,7 @@ components:
       - context
       - model_tier
       - skills
+      - connectors
       - knowledge_source_ids
       - task_count
       - version
@@ -2698,6 +2821,14 @@ components:
           - type: string
           - type: 'null'
           title: Add Skill
+        connectors:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 20
+          - type: 'null'
+          title: Connectors
       type: object
       title: AgentPatch
     ApprovalOut:
@@ -2790,6 +2921,24 @@ components:
       - items
       - next_cursor
       title: AuditPage
+    AuthorizeIn:
+      properties:
+        return_to:
+          type: string
+          maxLength: 2000
+          title: Return To
+          default: /
+      type: object
+      title: AuthorizeIn
+    AuthorizeOut:
+      properties:
+        authorize_url:
+          type: string
+          title: Authorize Url
+      type: object
+      required:
+      - authorize_url
+      title: AuthorizeOut
     AutomationIn:
       properties:
         name:
@@ -2963,6 +3112,17 @@ components:
           title: Per Task Token Limit
       type: object
       title: BudgetIn
+    ClientSecretIn:
+      properties:
+        secret:
+          type: string
+          maxLength: 8192
+          minLength: 1
+          title: Secret
+      type: object
+      required:
+      - secret
+      title: ClientSecretIn
     ConnectionIn:
       properties:
         connector_id:

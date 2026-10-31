@@ -22,12 +22,12 @@ from workx.domains.audit import service as audit
 from workx.domains.identity.auth import Authenticated, State
 from workx.domains.resources import events as tenant_events
 from workx.domains.resources.common import load, require
-from workx.domains.runtime.models import Approval, TaskEvent, TenantBudget, ToolOperation
+from workx.domains.runtime import resume
+from workx.domains.runtime.models import Approval, TaskEvent, TenantBudget
 from workx.domains.tasks import service as tasks
 from workx.domains.tasks.models import Task
 from workx.domains.tenancy import service as tenancy
 from workx.domains.tenancy.api import tenant_uuid
-from workx.platform import outbox
 from workx.platform.web import AppState
 
 router = APIRouter(tags=["runtime"])
@@ -117,36 +117,20 @@ def retry(tenant_id: str, task_id: str, principal: Authenticated, state: State) 
     ):
         task = load(session, Task, actor, task_id, "task", lock=True)
         require(session, actor, "use", "task", task, tasks.implicit_actions(session, actor, task))
-        if task.status not in ("failed", "interrupted", "cancelled", "needs_auth"):
+        if task.status not in resume.RETRYABLE:
             raise conflict(
                 "INVALID_STATE",
                 "Only failed, interrupted, cancelled or blocked tasks can be retried.",
                 {"status": task.status},
             )
-        unknown = (
-            session.execute(
-                select(ToolOperation.tool).where(ToolOperation.task_id == task.id, ToolOperation.status == "unknown")
-            )
-            .scalars()
-            .all()
-        )
+        unknown = resume.unknown_operations(session, task.id)
         if unknown:
             raise conflict(
                 "RECONCILIATION_REQUIRED",
                 "Some actions may have happened already; check them before retrying.",
-                {"tools": sorted(set(unknown))},
+                {"tools": unknown},
             )
-        task.status, task.status_reason, task.finished_at, task.cancel_requested_at = "queued", None, None, None
-        task.row_version += 1
-        outbox.emit(
-            session,
-            "task.queued",
-            {"task_id": str(task.id), "tenant_id": str(actor.tenant.id), "retry": True},
-            tenant_id=actor.tenant.id,
-        )
-        tenant_events.publish(
-            session, actor.tenant.id, "task.queued", {"task_id": task_id}, audience=[actor.membership.id]
-        )
+        resume.requeue(session, task, [actor.membership.id])
         audit.record(
             session,
             "task.retried",

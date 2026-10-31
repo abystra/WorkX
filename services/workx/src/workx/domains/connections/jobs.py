@@ -9,7 +9,7 @@ from sqlalchemy import select
 from workx.core.orm import utcnow
 from workx.domains.connections import service
 from workx.domains.connections.models import Connection
-from workx.domains.runtime import leases
+from workx.domains.runtime import leases, resume
 from workx.domains.tasks.models import Task
 from workx.platform import jobs
 
@@ -51,3 +51,10 @@ def membership_offboarding(ctx: jobs.JobContext, job: jobs.Job) -> None:
             service.change_status(
                 session, connection, target, actor_user_id=None, actor_membership_id=None, reason=f"member_{status}"
             )
+
+
+@jobs.handler("resume_after_authorization", topics=("connection.authorized",))
+def resume_after_authorization(ctx: jobs.JobContext, job: jobs.Job) -> None:
+    """Tasks paused for this member's authorization of the connector run again (Part 4 §11)."""
+    with ctx.db.transaction(tenant_id=uuid.UUID(job.payload["tenant_id"])) as session:
+        resume.resume_authorized(session, uuid.UUID(job.payload["membership_id"]), job.payload["connector_id"])

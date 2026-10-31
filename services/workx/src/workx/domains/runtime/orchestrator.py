@@ -84,6 +84,7 @@ class RunState:
     cancel_sent_at: float | None = None
     relayed_approvals: set[uuid.UUID] = field(default_factory=set)
     rejected_frames: int = 0
+    paused_for_auth: bool = False
 
 
 class FencedOut(Exception):
@@ -170,6 +171,12 @@ class Orchestrator:
                 required_connectors=[str(r.get("connector")) for r in version.tool_refs if isinstance(r, dict)],
             )
             if bindings.missing_user_auth:
+                attempt.status, attempt.end_reason, attempt.ended_at, attempt.lease_owner = (
+                    "ended",
+                    "needs_auth",
+                    utcnow(),
+                    None,
+                )
                 self._needs_auth(session, task, initiator, bindings.missing_user_auth)
                 return None
             ttl = timedelta(seconds=self.settings.wall_seconds + 300)
@@ -405,6 +412,20 @@ class Orchestrator:
             if task.cancel_requested_at is not None and state.cancel_sent_at is None:
                 process.send(json.dumps({"type": "cancel"}))
                 state.cancel_sent_at = time.monotonic()
+            # Mid-run authorization (Part 4 §11): the Tool Gateway recorded that the user's token stopped working.
+            # Whatever the engine, the run stops here and resumes as a new attempt once the user re-authorizes.
+            if (
+                not state.paused_for_auth
+                and session.execute(
+                    select(AuthorizationRequest.id).where(
+                        AuthorizationRequest.attempt_id == started.attempt_id, AuthorizationRequest.status == "pending"
+                    )
+                ).first()
+            ):
+                state.paused_for_auth = True
+                if state.cancel_sent_at is None:
+                    process.send(json.dumps({"type": "cancel"}))
+                    state.cancel_sent_at = time.monotonic()
             decided = (
                 session.execute(
                     select(Approval).where(
@@ -589,6 +610,17 @@ class Orchestrator:
             attempt = self._owned(session, started)
             task = session.get(Task, started.task_id, with_for_update=True)
             assert task is not None
+            # A tool needed the user's authorization during this attempt. Even if the model then finished its
+            # answer (the heartbeat may not have stopped it yet), the task waits for the user and runs again.
+            if (
+                state.paused_for_auth
+                or session.execute(
+                    select(AuthorizationRequest.id).where(
+                        AuthorizationRequest.attempt_id == started.attempt_id, AuthorizationRequest.status == "pending"
+                    )
+                ).first()
+            ):
+                reason = "needs_auth"
             status, why = FINAL_STATUS.get(reason, ("failed", reason))
             if task.cancel_requested_at is not None and reason != "completed":
                 status, why = "cancelled", None

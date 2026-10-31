@@ -45,6 +45,7 @@ class OAuthTransaction(Base):
     key_ref: Mapped[str]
     key_version: Mapped[int]
     redirect_uri: Mapped[str]
+    client_id: Mapped[str] = mapped_column(server_default="")
     return_to: Mapped[str]
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text))
     expires_at: Mapped[datetime]

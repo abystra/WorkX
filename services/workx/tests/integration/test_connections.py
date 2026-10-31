@@ -263,3 +263,37 @@ def test_revocation_and_member_offboarding(
             text("SELECT status FROM connections WHERE id = :c"), {"c": ids.decode("connection", private["id"])}
         ).scalar_one()
     assert tuple(status) == ("cancelled", "member_deactivated") and connection == "suspended"
+
+
+def test_oauth_client_secret_is_stored_by_the_broker(
+    new_client: Callable[[], TestClient], oidc: TestClient, owner_db: Database, db: Database
+) -> None:
+    w = _org(new_client, oidc, owner_db)
+    base = w["base"]
+    put = w["owner"].put(f"{base}/connectors/feishu-docs/installation", json={"config": {"client_id": "cli_1"}})
+    assert put.status_code == 200
+    # Secrets never go into installation config, and members cannot set them.
+    leaked = w["owner"].put(f"{base}/connectors/feishu-docs/installation", json={"config": {"client_secret": SECRET}})
+    assert leaked.status_code == 400
+    assert w["member"].put(f"{base}/connectors/feishu-docs/client-secret", json={"secret": SECRET}).status_code == 403
+    assert w["owner"].put(f"{base}/connectors/feishu-docs/client-secret", json={"secret": SECRET}).status_code == 204
+    tenant = ids.decode("tenant", w["org"]["id"])
+    with owner_db.transaction() as session:
+        row = session.execute(
+            text(
+                "SELECT kind, connection_id FROM credentials"
+                " WHERE installation_connector_id = 'feishu-docs' AND tenant_id = :t"
+            ),
+            {"t": tenant},
+        ).one()
+        assert tuple(row) == ("app_secret", None)
+        stored = session.execute(
+            text(
+                "SELECT ciphertext FROM secret_versions sv JOIN credentials c ON c.id = sv.credential_id"
+                " WHERE c.tenant_id = :t AND c.installation_connector_id = 'feishu-docs'"
+            ),
+            {"t": tenant},
+        ).scalar_one()
+        assert SECRET.encode() not in bytes(stored)
+    with pytest.raises(ProgrammingError), db.transaction(tenant_id=tenant) as session:
+        session.execute(text("SELECT ciphertext FROM secret_versions"))

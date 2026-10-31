@@ -70,6 +70,17 @@ SCRIPTS: dict[str, list[dict[str, Any]]] = {
         },
         {"text": "I saved top-accounts.xlsx with your two largest accounts."},
     ],
+    "notes": [
+        {"text": "Saving that to your notes.", "tool": ("notes_create", {"title": "Renewals", "body": "Call Contoso"})},
+        {"text": 'I saved the note "Renewals" in your Notes.'},
+    ],
+    "sdknotes": [
+        {
+            "text": "Saving that to your notes.",
+            "tool": ("mcp__workx__notes_create", {"title": "Renewals", "body": "Call Contoso"}),
+        },
+        {"text": "I saved the note in your Notes."},
+    ],
     "forbidden_tool": [
         {"tool": ("delete_everything", {})},
         {"text": "That tool is not available."},

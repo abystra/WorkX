@@ -26,6 +26,7 @@ class Agent(Base):
     context_md: Mapped[str] = mapped_column(server_default="")
     model_tier: Mapped[str] = mapped_column(server_default="auto")
     skills: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
+    connectors: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default="{}")
     knowledge_source_ids: Mapped[list[uuid.UUID]] = mapped_column(ARRAY(UUID(as_uuid=True)), server_default="{}")
     current_version_id: Mapped[uuid.UUID | None]
     row_version: Mapped[int] = mapped_column(server_default="1")
