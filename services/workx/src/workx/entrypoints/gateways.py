@@ -53,6 +53,14 @@ def dev_notes() -> FastAPI:
     return create_dev_notes_app(environment=BaseWorkxSettings().environment)
 
 
+def dev_channels() -> FastAPI:
+    """Test Feishu/WeCom APIs. Point the broker at it: WORKX_FEISHU_BASE_URL / WORKX_WECOM_BASE_URL."""
+    from workx.core.settings import BaseWorkxSettings
+    from workx.entrypoints.dev_channels import create_dev_channels_app
+
+    return create_dev_channels_app(environment=BaseWorkxSettings().environment)
+
+
 def dev_model() -> FastAPI:
     import os
 

@@ -19,6 +19,7 @@ from workx.core.settings import ApiSettings
 from workx.domains.agents import api as agents_api
 from workx.domains.artifacts import api as artifacts_api
 from workx.domains.audit import api as audit_api
+from workx.domains.channels import api as channels_api
 from workx.domains.connections import api as connections_api
 from workx.domains.connections.broker_client import BrokerClient
 from workx.domains.identity import api as identity_api
@@ -149,4 +150,5 @@ def domain_routers() -> list[APIRouter]:
         artifacts_api.router,
         connections_api.router,
         knowledge_api.router,
+        channels_api.router,
     ]

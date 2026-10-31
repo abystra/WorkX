@@ -65,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         ("broker", 8220),
         ("dev-crm", 8300),
         ("dev-notes", 8310),
+        ("dev-channels", 8320),
         ("dev-model", 8400),
     ):
         gateway = sub.add_parser(name, help=f"run the {name}")
@@ -129,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
         configure(OrchestratorSettings().log_level)
         return run_orchestrator()
 
-    if args.command in ("model-gateway", "tool-gateway", "broker", "dev-crm", "dev-notes", "dev-model"):
+    if args.command in ("model-gateway", "tool-gateway", "broker", "dev-crm", "dev-notes", "dev-channels", "dev-model"):
         import uvicorn
 
         from workx.entrypoints import gateways
@@ -140,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             "broker": gateways.broker,
             "dev-crm": gateways.dev_crm,
             "dev-notes": gateways.dev_notes,
+            "dev-channels": gateways.dev_channels,
             "dev-model": gateways.dev_model,
         }[args.command]()
         uvicorn.run(app, host=args.host, port=args.port)

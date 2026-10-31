@@ -63,6 +63,8 @@ def connectors(tenant_id: str, principal: Authenticated, state: State) -> list[C
         }
         out = []
         for c in catalog.CONNECTORS.values():
+            if c.channel:
+                continue
             row = rows.get(c.id)
             installed = row is not None or c.default_installed
             out.append(
@@ -95,7 +97,7 @@ def install(
     tenant_id: str, connector_id: str, body: InstallationIn, principal: Authenticated, state: State
 ) -> ConnectorOut:
     connector = catalog.get(connector_id)
-    if connector is None:
+    if connector is None or connector.channel:
         raise not_found()
     with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tenant_uuid(tenant_id), write=True) as (
         session,
@@ -204,7 +206,11 @@ def _one(session: Session, c: Connection, actor: Actor) -> ConnectionOut:
 )
 def list_connections(tenant_id: str, principal: Authenticated, state: State) -> list[ConnectionOut]:
     with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tenant_uuid(tenant_id)) as (session, actor):
-        query = select(Connection).where(Connection.tenant_id == actor.tenant.id, Connection.status != "revoked")
+        query = select(Connection).where(
+            Connection.tenant_id == actor.tenant.id,
+            Connection.status != "revoked",
+            Connection.connector_id.not_in([c.id for c in catalog.CONNECTORS.values() if c.channel]),
+        )
         if not actor.is_manager:
             query = query.where(
                 or_(Connection.owner_membership_id == actor.membership.id, Connection.owner_scope == "tenant")
@@ -235,7 +241,7 @@ def _load(session: object, actor: Actor, connection_id: str) -> Connection:
 )
 def create_connection(tenant_id: str, body: ConnectionIn, principal: Authenticated, state: State) -> ConnectionOut:
     connector = catalog.get(body.connector_id)
-    if connector is None or connector.auth == "none":
+    if connector is None or connector.auth == "none" or connector.channel:
         raise validation("This connector does not use connections.", data={"field": "connector_id"})
     tid = tenant_uuid(tenant_id)
     with tenant_scope(state.db, user_id=principal.user_id, tenant_id=tid, write=True) as (session, actor):

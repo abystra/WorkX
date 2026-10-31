@@ -6,8 +6,10 @@ metadata only. Internal calls are authenticated with ``WORKX_BROKER_TOKEN`` (mTL
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
 import secrets
 import uuid
 from datetime import datetime, timedelta
@@ -25,10 +27,12 @@ from workx.core.errors import ApiError
 from workx.core.orm import utcnow
 from workx.core.settings import TrustedSettings
 from workx.domains.audit import service as audit
+from workx.domains.channels.models import ChannelBinding
 from workx.domains.connections import catalog
 from workx.domains.connections.models import Connection, ConnectorInstallation, Credential
 from workx.domains.tenancy.models import Membership
 from workx.platform import outbox
+from workx.trusted.channels import crypto, send
 from workx.trusted.credentials import keys, oauth
 from workx.trusted.credentials.models import OAuthTransaction
 from workx.trusted.credentials.vault import Vault, open_sealed, seal
@@ -71,6 +75,36 @@ class InstallationSecretIn(BaseModel):
     connector_id: str
     actor_membership_id: uuid.UUID
     value: str = Field(min_length=1, max_length=8192)
+
+
+class ChannelSecretsIn(BaseModel):
+    tenant_id: uuid.UUID
+    binding_id: uuid.UUID
+    actor_membership_id: uuid.UUID
+    values: dict[str, str]
+
+
+class ChannelOpenIn(BaseModel):
+    tenant_id: uuid.UUID
+    binding_id: uuid.UUID
+    method: Literal["GET", "POST"] = "POST"
+    headers: dict[str, str] = Field(default_factory=dict)
+    query: dict[str, str] = Field(default_factory=dict)
+    body_b64: str = ""
+
+
+class ChannelSendIn(BaseModel):
+    tenant_id: uuid.UUID
+    binding_id: uuid.UUID
+    delivery_id: str
+    target: dict[str, Any]
+    text: str = Field(max_length=20_000)
+
+
+CHANNEL_SECRET_FIELDS = {
+    "feishu": {"app_secret", "encrypt_key", "verification_token"},
+    "wecom": {"secret", "token", "encoding_aes_key"},
+}
 
 
 class SecretOut(BaseModel):
@@ -162,6 +196,135 @@ def create_broker_app(
                 data={"versions": destroyed},
             )
             return {"destroyed": destroyed}
+
+    channel_tokens = send.TokenCache()
+
+    def binding_secrets(
+        session: Any, tenant_id: uuid.UUID, binding_id: uuid.UUID
+    ) -> tuple[ChannelBinding, dict[str, str]]:
+        binding = session.get(ChannelBinding, binding_id)
+        if binding is None or binding.tenant_id != tenant_id or binding.deleted_at is not None:
+            raise ApiError(404, "NOT_FOUND", "Unknown binding.")
+        credential = (
+            session.execute(
+                select(Credential).where(
+                    Credential.connection_id == binding.connection_id, Credential.kind == "app_secret"
+                )
+            ).scalar_one_or_none()
+            if binding.connection_id
+            else None
+        )
+        if credential is None:
+            raise ApiError(409, "CHANNEL_NOT_CONFIGURED", "The binding has no credentials yet.")
+        values: dict[str, str] = json.loads(vault.read(session, credential)[0])
+        return binding, values
+
+    @app.post("/internal/channels/secrets")
+    def channel_secrets(
+        body: ChannelSecretsIn, x_workx_internal_token: str | None = Header(default=None)
+    ) -> dict[str, int]:
+        """Stores a binding's bot secrets as one channel-class credential (merged with earlier values)."""
+        check(x_workx_internal_token)
+        with db.transaction(tenant_id=body.tenant_id) as session:
+            binding = session.get(ChannelBinding, body.binding_id, with_for_update=True)
+            if binding is None or binding.tenant_id != body.tenant_id or binding.deleted_at is not None:
+                raise ApiError(404, "NOT_FOUND", "Unknown binding.")
+            allowed = CHANNEL_SECRET_FIELDS[binding.platform]
+            if not set(body.values) <= allowed:
+                raise ApiError(400, "VALIDATION_FAILED", "Unknown secret field.")
+            current: dict[str, str] = {}
+            if binding.connection_id is None:
+                connection = Connection(
+                    id=ids.uuid7(),
+                    tenant_id=binding.tenant_id,
+                    connector_id=f"channel-{binding.platform}",
+                    name=f"Channel: {binding.name}"[:80],
+                    owner_scope="tenant",
+                    owner_membership_id=body.actor_membership_id,
+                    status="active",
+                )
+                session.add(connection)
+                session.flush()
+                binding.connection_id = connection.id
+                credential = Credential(
+                    id=ids.uuid7(),
+                    tenant_id=binding.tenant_id,
+                    connection_id=connection.id,
+                    usage_class="channel",
+                    kind="app_secret",
+                )
+                session.add(credential)
+                session.flush()
+            else:
+                credential = session.execute(
+                    select(Credential).where(
+                        Credential.connection_id == binding.connection_id, Credential.kind == "app_secret"
+                    )
+                ).scalar_one()
+                if credential.active_version_id is not None:
+                    current = json.loads(vault.read(session, credential)[0])
+            merged = {**current, **{k: v for k, v in body.values.items() if v}}
+            version = vault.put(session, credential, json.dumps(merged))
+            channel_tokens.drop(str(binding.id))
+            audit.record(
+                session,
+                "channel.secrets_set",
+                tenant_id=binding.tenant_id,
+                actor_membership_id=body.actor_membership_id,
+                target_type="channel_binding",
+                target_id=binding.id,
+                data={"fields": sorted(merged)},
+            )
+            return {"version": version.version_no, "configured": len(merged)}
+
+    @app.post("/internal/channels/open")
+    def channel_open(body: ChannelOpenIn, x_workx_internal_token: str | None = Header(default=None)) -> dict[str, Any]:
+        """Verifies (signature, timestamp, token) and decrypts one platform callback for the API's ingress."""
+        check(x_workx_internal_token)
+        raw = base64.b64decode(body.body_b64) if body.body_b64 else b""
+        with db.transaction(tenant_id=body.tenant_id) as session:
+            binding, values = binding_secrets(session, body.tenant_id, body.binding_id)
+        headers = {k.lower(): v for k, v in body.headers.items()}
+        try:
+            if binding.platform == "feishu":
+                event = crypto.feishu_open(values, headers, raw)
+                if event.get("type") == "url_verification":
+                    return {"kind": "challenge", "body": json.dumps({"challenge": event.get("challenge", "")})}
+                return {"kind": "event", "payload": event}
+            corp_id = str(binding.config.get("corp_id", ""))
+            plain = crypto.wecom_open(values, corp_id, body.query, None if body.method == "GET" else raw)
+            if body.method == "GET":
+                return {"kind": "challenge", "body": plain}
+            return {"kind": "event", "payload": plain}
+        except crypto.Rejected as exc:
+            raise ApiError(401, "CALLBACK_REJECTED", exc.code) from exc
+
+    @app.post("/internal/channels/send")
+    def channel_send(body: ChannelSendIn, x_workx_internal_token: str | None = Header(default=None)) -> dict[str, Any]:
+        check(x_workx_internal_token)
+        with db.transaction(tenant_id=body.tenant_id) as session:
+            binding, values = binding_secrets(session, body.tenant_id, body.binding_id)
+        sender = send.feishu_send if binding.platform == "feishu" else send.wecom_send
+        base = settings.feishu_base_url if binding.platform == "feishu" else settings.wecom_base_url
+        try:
+            receipt = sender(
+                http,
+                channel_tokens,
+                base.rstrip("/"),
+                str(binding.id),
+                dict(binding.config),
+                values,
+                body.target,
+                body.text,
+                body.delivery_id,
+            )
+        except send.SendFailure as exc:
+            return {"status": "failed", "retryable": exc.retryable, "error": str(exc)}
+        except httpx.TimeoutException:
+            return {"status": "unknown", "retryable": False, "error": "timeout"}
+        except httpx.HTTPError as exc:
+            return {"status": "failed", "retryable": True, "error": type(exc).__name__}
+        return {"status": "delivered", "receipt": receipt}
 
     @app.post("/internal/installations/secret")
     def installation_secret(

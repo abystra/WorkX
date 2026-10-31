@@ -80,3 +80,12 @@ class BrokerClient:
 
     def oauth_complete(self, body: dict[str, Any]) -> dict[str, Any]:
         return self._post("/internal/oauth/complete", body)
+
+    def channel_secrets(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._post("/internal/channels/secrets", body)
+
+    def channel_open(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._post("/internal/channels/open", body)
+
+    def channel_send(self, body: dict[str, Any]) -> dict[str, Any]:
+        return self._post("/internal/channels/send", body)

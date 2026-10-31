@@ -34,6 +34,8 @@ class Connector:
     # Its OAuth endpoints are discovered (RFC 9728 → RFC 8414) and, without a configured client_id, the client is
     # registered dynamically (RFC 7591).
     remote_mcp: dict[str, str] | None = None
+    # Holds a channel binding's bot secrets (usage class "channel"); not offered as a tool connection.
+    channel: bool = False
 
 
 CONNECTORS: dict[str, Connector] = {
@@ -71,6 +73,15 @@ CONNECTORS: dict[str, Connector] = {
         ),
     )
 }
+CONNECTORS.update(
+    {
+        c.id: c
+        for c in (
+            Connector("channel-feishu", "Feishu bot (channel)", "C", "app_secret", "app", (), channel=True),
+            Connector("channel-wecom", "WeCom app (channel)", "C", "app_secret", "app", (), channel=True),
+        )
+    }
+)
 TOOL_CONNECTOR = {tool: c.id for c in CONNECTORS.values() for tool in c.tools}
 
 

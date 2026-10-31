@@ -2848,6 +2848,334 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-bindings:
+    get:
+      tags:
+      - channels
+      summary: Chat bots bound to workmates in this organization
+      operationId: list_bindings_api_v1_tenants__tenant_id__channel_bindings_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BindingOut'
+                title: Response List Bindings Api V1 Tenants  Tenant Id  Channel Bindings Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - channels
+      summary: Bind a chat bot to a workmate
+      operationId: create_binding_api_v1_tenants__tenant_id__channel_bindings_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindingIn'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-bindings/{binding_id}:
+    patch:
+      tags:
+      - channels
+      summary: Change, pause or resume a binding
+      operationId: patch_binding_api_v1_tenants__tenant_id__channel_bindings__binding_id__patch
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: binding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Binding Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindingPatch'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindingOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - channels
+      summary: Remove a binding
+      operationId: delete_binding_api_v1_tenants__tenant_id__channel_bindings__binding_id__delete
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: binding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Binding Id
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-bindings/{binding_id}/secrets:
+    put:
+      tags:
+      - channels
+      summary: Set the bot's secrets (stored by the broker, never returned)
+      operationId: put_secrets_api_v1_tenants__tenant_id__channel_bindings__binding_id__secrets_put
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: binding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Binding Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SecretsIn'
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-bindings/{binding_id}/link-code:
+    post:
+      tags:
+      - channels
+      summary: A one-time code that links your chat account to your membership (send it to the bot)
+      operationId: link_code_api_v1_tenants__tenant_id__channel_bindings__binding_id__link_code_post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: binding_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Binding Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCodeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-runs:
+    get:
+      tags:
+      - channels
+      summary: 'Channel conversations: yours, or all for admins'
+      operationId: list_runs_api_v1_tenants__tenant_id__channel_runs_get
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RunOut'
+                title: Response List Runs Api V1 Tenants  Tenant Id  Channel Runs Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/tenants/{tenant_id}/channel-runs/{run_id}/{action}:
+    post:
+      tags:
+      - channels
+      summary: Retry, cancel or replay a channel run
+      operationId: run_action_api_v1_tenants__tenant_id__channel_runs__run_id___action__post
+      parameters:
+      - name: tenant_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Tenant Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Action
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                title: Response Run Action Api V1 Tenants  Tenant Id  Channel Runs  Run Id   Action  Post
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/channels/{platform}/{public_id}/events:
+    get:
+      tags:
+      - channels
+      summary: Platform URL verification (WeCom echostr)
+      operationId: channel_ingress_get
+      parameters:
+      - name: platform
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Platform
+      - name: public_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Public Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - channels
+      summary: Platform callbacks (Feishu events, WeCom messages); authenticated by the platform's signature
+      operationId: channel_ingress_post
+      parameters:
+      - name: platform
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Platform
+      - name: public_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Public Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AcceptOut:
@@ -3319,6 +3647,137 @@ components:
           title: Enabled
       type: object
       title: AutomationPatch
+    BindingIn:
+      properties:
+        platform:
+          type: string
+          enum:
+          - feishu
+          - wecom
+          title: Platform
+        method:
+          type: string
+          title: Method
+        name:
+          type: string
+          maxLength: 80
+          minLength: 1
+          title: Name
+        agent_id:
+          type: string
+          title: Agent Id
+        capabilities:
+          items:
+            type: string
+          type: array
+          maxItems: 10
+          title: Capabilities
+        config:
+          additionalProperties:
+            type: string
+          type: object
+          title: Config
+        secrets:
+          additionalProperties:
+            type: string
+          type: object
+          title: Secrets
+      type: object
+      required:
+      - platform
+      - method
+      - name
+      - agent_id
+      title: BindingIn
+    BindingOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        platform:
+          type: string
+          title: Platform
+        method:
+          type: string
+          title: Method
+        agent_id:
+          type: string
+          title: Agent Id
+        capabilities:
+          items:
+            type: string
+          type: array
+          title: Capabilities
+        enabled:
+          type: boolean
+          title: Enabled
+        revision:
+          type: integer
+          title: Revision
+        config:
+          additionalProperties:
+            type: string
+          type: object
+          title: Config
+        configured:
+          type: boolean
+          title: Configured
+        webhook_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Webhook Url
+      type: object
+      required:
+      - id
+      - name
+      - platform
+      - method
+      - agent_id
+      - capabilities
+      - enabled
+      - revision
+      - config
+      - configured
+      - webhook_url
+      title: BindingOut
+    BindingPatch:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 80
+          - type: 'null'
+          title: Name
+        agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Id
+        capabilities:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Capabilities
+        config:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Config
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      type: object
+      title: BindingPatch
     Body_upload_api_v1_tenants__tenant_id__files_upload_post:
       properties:
         file:
@@ -3796,6 +4255,24 @@ components:
       required:
       - emails
       title: InviteIn
+    LinkCodeOut:
+      properties:
+        code:
+          type: string
+          title: Code
+        expires_at:
+          type: string
+          format: date-time
+          title: Expires At
+        instruction:
+          type: string
+          title: Instruction
+      type: object
+      required:
+      - code
+      - expires_at
+      - instruction
+      title: LinkCodeOut
     LogoutOut:
       properties:
         end_session_url:
@@ -4233,6 +4710,88 @@ components:
       required:
       - member_ids
       title: RosterIn
+    RunOut:
+      properties:
+        id:
+          type: string
+          title: Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        binding_id:
+          type: string
+          title: Binding Id
+        binding_name:
+          type: string
+          title: Binding Name
+        platform:
+          type: string
+          title: Platform
+        agent_id:
+          type: string
+          title: Agent Id
+        agent_name:
+          type: string
+          title: Agent Name
+        source:
+          additionalProperties: true
+          type: object
+          title: Source
+        stage:
+          type: string
+          title: Stage
+        execution_status:
+          type: string
+          title: Execution Status
+        delivery_status:
+          type: string
+          title: Delivery Status
+        delivery_attempts:
+          type: integer
+          title: Delivery Attempts
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        reply:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Reply
+        event_id:
+          type: string
+          title: Event Id
+        replay_count:
+          type: integer
+          title: Replay Count
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - task_id
+      - binding_id
+      - binding_name
+      - platform
+      - agent_id
+      - agent_name
+      - source
+      - stage
+      - execution_status
+      - delivery_status
+      - delivery_attempts
+      - error_code
+      - reply
+      - event_id
+      - replay_count
+      - created_at
+      title: RunOut
     ScenarioIn:
       properties:
         name:
@@ -4348,6 +4907,17 @@ components:
       required:
       - secret
       title: SecretIn
+    SecretsIn:
+      properties:
+        secrets:
+          additionalProperties:
+            type: string
+          type: object
+          title: Secrets
+      type: object
+      required:
+      - secrets
+      title: SecretsIn
     SessionOut:
       properties:
         id:

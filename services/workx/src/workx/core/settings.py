@@ -105,6 +105,9 @@ class TrustedSettings(BaseWorkxSettings):
     openbao_token: SecretStr = SecretStr("")
     # Shared secret for internal calls from the API to the broker (mTLS in production deployments).
     broker_token: SecretStr = SecretStr("workx-dev-broker-token")
+    # Channel platform APIs (overridable for the test platforms).
+    feishu_base_url: str = "https://open.feishu.cn"
+    wecom_base_url: str = "https://qyapi.weixin.qq.com"
 
     @model_validator(mode="after")
     def _guard_keys(self) -> TrustedSettings:
@@ -138,7 +141,6 @@ class ModelGatewaySettings(BaseWorkxSettings):
 
 class ToolGatewaySettings(TrustedSettings):
     crm_base_url: str = "http://127.0.0.1:8300"
-    feishu_base_url: str = "https://open.feishu.cn"
     approval_ttl_minutes: int = 10
     max_result_chars: int = 50_000
     web_fetch_max_bytes: int = 2_000_000

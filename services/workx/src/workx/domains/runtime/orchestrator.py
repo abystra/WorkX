@@ -41,7 +41,7 @@ from workx.domains.runtime.models import Approval, TaskAttempt, TaskEvent, ToolO
 from workx.domains.runtime.sandbox import Sandbox, SandboxProvider, gateway_hosts
 from workx.domains.tasks.models import Task, TaskMemberState, TaskMessage
 from workx.domains.tenancy.models import Membership
-from workx.platform import jobs, storage
+from workx.platform import jobs, outbox, storage
 
 log = logging.getLogger("workx.orchestrator")
 
@@ -298,6 +298,12 @@ class Orchestrator:
                     )
                 )
         self._set_status(session, task, "needs_auth", "needs_auth:" + ",".join(connectors))
+        outbox.emit(
+            session,
+            "task.finished",
+            {"tenant_id": str(task.tenant_id), "task_id": str(task.id), "status": "needs_auth"},
+            tenant_id=task.tenant_id,
+        )
         self._event(session, task, None, None, "auth.required", {"connectors": connectors})
         tenant_events.publish(
             session,
@@ -654,6 +660,12 @@ class Orchestrator:
             leases.revoke_for_attempt(session, attempt.id)
             self._event(
                 session, task, attempt, None, f"task.{status}", {"reason": why, "attempt_no": attempt.attempt_no}
+            )
+            outbox.emit(
+                session,
+                "task.finished",
+                {"tenant_id": str(task.tenant_id), "task_id": str(task.id), "status": status},
+                tenant_id=task.tenant_id,
             )
             for membership_id in started.audience:
                 session.execute(

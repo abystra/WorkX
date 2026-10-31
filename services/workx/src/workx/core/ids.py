@@ -40,6 +40,7 @@ PREFIXES = {
     "knowledge_chunk": "knc",
     "channel_binding": "chb",
     "channel_run": "chr",
+    "delivery": "dlv",
     "approval": "apr",
     "authorization_request": "arq",
     "job": "job",
