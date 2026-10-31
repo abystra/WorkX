@@ -28,6 +28,27 @@ These are covered by automated tests on every run (`scripts/check.sh backend`). 
 
 In both suites, the upstream model is `workx dev-model`, a scripted stand-in for the Messages API. **The real Anthropic API and E2B have not been exercised in this environment** (no credentials).
 
+### Real model through the gateway (opt-in test)
+
+`tests/runtime/test_real_model.py` runs the slice with a real model service behind the Model Gateway, for both engines. It runs only when these are set; the key stays in the environment and reaches only the Model Gateway:
+
+```bash
+export WORKX_REAL_MODEL_BASE_URL=https://api.anthropic.com WORKX_REAL_MODEL_API_KEY=<key> WORKX_REAL_MODEL=<model id>
+```
+
+```bash
+uv run pytest services/workx/tests/runtime/test_real_model.py -s
+```
+
+It checks that the task succeeds, the model chose to call the CRM tool through the Tool Gateway, the answer names the top account, tokens were metered, and the Runner's environment held only tickets.
+
+**Result on 2026-10-31 (not Anthropic):** run against DeepSeek's Anthropic-compatible endpoint (`deepseek-chat`), the only real model service reachable here. Both engines passed:
+
+- `messages`: one CRM call, about 1,050 tokens metered;
+- `claude-agent-sdk` (bundled Claude Code CLI): two tool calls (tool schema loading, then the CRM), about 11,600 tokens metered.
+
+This verifies the real-model path through the platform (gateway, tickets, streaming, MCP tools, metering) with a real model. It does not verify Anthropic itself: the product's model tiers are Claude models (decision D-01), and that run is still outstanding.
+
 ## Real-service verification (run where credentials exist)
 
 ### 1. Anthropic API, with local sandboxes

@@ -154,15 +154,16 @@ def user(new_client: Callable[[], TestClient], oidc: TestClient) -> User:
     return User(client, me, org["id"], agent)
 
 
-def start_one(stack: Stack, task_id: str) -> Started:
+def start_one(stack: Stack, task_id: str, orchestrator: Orchestrator | None = None) -> Started:
     """Starts exactly this task: run_task jobs left by other test modules are cleared first."""
-    jobs.dispatch_outbox(stack.orchestrator.db)
-    with stack.orchestrator.db.transaction() as session:
+    orchestrator = orchestrator or stack.orchestrator
+    jobs.dispatch_outbox(orchestrator.db)
+    with orchestrator.db.transaction() as session:
         session.execute(
             text("DELETE FROM jobs WHERE kind = 'run_task' AND status = 'queued' AND payload->>'task_id' <> :t"),
             {"t": str(ids.decode("task", task_id))},
         )
-    started = stack.orchestrator.claim_and_start()
+    started = orchestrator.claim_and_start()
     match = [s for s in started if ids.encode("task", s.task_id) == task_id]
     assert match, f"no attempt started for {task_id}: {started}"
     return match[0]

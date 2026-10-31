@@ -22,6 +22,12 @@ from typing import Any
 
 from workx_runner.protocol import Control, Emitter
 
+
+def tool_name(sdk_name: str) -> str:
+    """``mcp__workx__crm_list_accounts`` → ``crm_list_accounts`` (the name the gateway and the UI use)."""
+    return sdk_name.removeprefix("mcp__workx__")
+
+
 ALLOWED_TOOLS = ["Read", "Glob", "Grep", "Edit", "Write", "Bash", "Skill", "mcp__workx__*"]
 DISALLOWED_TOOLS = ["WebFetch", "WebSearch"]
 WRITE_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
@@ -109,6 +115,7 @@ class SdkEngine:
 
         self.emit("run.started", {"engine": "claude-agent-sdk", "model": self.spec["model"]})
         reason = "completed"
+        names: dict[str, str] = {}  # tool_use_id → platform tool name, for tool.finished
         async with ClaudeSDKClient(options=self.options()) as client:
             await client.query(self.spec["input"]["text"])
             async for message in client.receive_response():
@@ -124,12 +131,18 @@ class SdkEngine:
                         self.emit("assistant.message", {"text": text})
                     for block in message.content:
                         if isinstance(block, ToolUseBlock):
-                            self.emit("tool.started", {"tool": block.name, "tool_use_id": block.id})
+                            names[block.id] = tool_name(block.name)
+                            self.emit("tool.started", {"tool": names[block.id], "tool_use_id": block.id})
                 elif isinstance(message, UserMessage) and isinstance(message.content, list):
                     for block in message.content:
                         if isinstance(block, ToolResultBlock):
                             self.emit(
-                                "tool.finished", {"tool_use_id": block.tool_use_id, "is_error": bool(block.is_error)}
+                                "tool.finished",
+                                {
+                                    "tool": names.get(block.tool_use_id, ""),
+                                    "tool_use_id": block.tool_use_id,
+                                    "is_error": bool(block.is_error),
+                                },
                             )
                 elif isinstance(message, ResultMessage):
                     if message.subtype == "error_max_turns":
