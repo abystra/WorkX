@@ -20,6 +20,7 @@ Verified by `apps/web/tests/e2e/real-backend.mjs` against the running stack (14/
 - **J1:** sign-in through the OIDC code flow. In this environment that means the development issuer; Keycloak uses the same protocol but is not yet verified here. A personal workspace and a starter workmate are created.
 - **J2:** create an organization and invite by email. The worker sends the email; the invitee follows the link, signs in and accepts.
 - **J3:** workspace separation (another user's private task is invisible; the member list is per workspace).
+- **Task execution:** a task started in the browser runs through the real orchestrator, runner, Model Gateway, Tool Gateway and test CRM. The conversation shows the answer and the result file. Locally the upstream model is `workx dev-model` (scripted) unless `WORKX_ANTHROPIC_API_KEY` is set; see `runtime/README.md`. Approve/reject, stop and retry are wired to the API.
 - **Workspace data:** workmates (each save that changes runtime fields publishes an immutable version), projects (roster, shared context), Library files (text), tasks (create, rename, pin, archive, unread, assign, review, follow-up, cancel), automations (stored with cron and time zone), scenarios, sharing, members, departments, invitations, the activity feed (audit log, managers only), and the tenant event stream.
 
 ## 3. Not yet served by the API
@@ -28,7 +29,6 @@ These calls are answered inside the transport: lists return empty, writes fail w
 
 | Area | Calls | Phase |
 | --- | --- | --- |
-| Task execution | Tasks stay `queued`: no orchestrator, runner, model gateway or sandbox yet | P-05 |
 | Connections | `/connections` | P-07 |
 | Knowledge | `/knowledge-sources`, workmate knowledge | P-08 |
 | Channels | `/channel-bindings`, `/channel-runs`, `/channel-messages` | P-09 |

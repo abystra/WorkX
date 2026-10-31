@@ -18,6 +18,10 @@ dependencies = [
   "cryptography>=43",
 ]
 
+[project.optional-dependencies]
+# Production sandbox provider (domains/runtime/sandbox.py: E2BProvider).
+e2b = ["e2b>=2.0"]
+
 [project.scripts]
 workx = "workx.entrypoints.cli:main"
 

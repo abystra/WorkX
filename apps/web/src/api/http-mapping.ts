@@ -120,6 +120,13 @@ export const mapTask = (t: any) => ({
   visibility: visibility(t.visibility), resourceOwnerId: t.created_by,
 });
 
+export const mapTaskDetail = (t: any) => ({
+  ...mapTask(t),
+  messages: (t.messages || []).map((m: any) => ({ id: m.id, role: m.role, content: m.content, fileId: m.file_id || undefined, createdAt: m.created_at })),
+});
+
+export const mapApproval = (a: any) => ({ id: a.id, tool: a.tool, summary: a.summary, status: a.status, expiresAt: a.expires_at });
+
 export const mapProject = (p: any) => ({
   id: p.id, name: p.name, description: p.description, tasks: p.task_count, updated: displayDate(p.updated_at),
   color: p.color || undefined, memberIds: p.member_ids, agentIds: p.agent_ids, sharedContext: p.shared_context,
@@ -227,7 +234,11 @@ export function plan(method: Method, path: string, body: any): Planned {
   if ((match = t('tasks'))) return method === 'GET'
     ? { method, path, out: (rows: any[]) => rows.map(mapTask) }
     : { method, path, body: taskBody(body), out: mapTask };
-  if ((match = t('tasks/([^/]+)'))) return { method, path, body: method === 'PATCH' ? taskPatch(body) : body, out: method === 'DELETE' ? identity : mapTask };
+  if ((match = t('tasks/([^/]+)'))) return { method, path, body: method === 'PATCH' ? taskPatch(body) : body, out: method === 'DELETE' ? identity : method === 'GET' ? mapTaskDetail : mapTask };
+  if ((match = t('tasks/([^/]+)/events'))) return { method, path, out: (rows: any[]) => rows.map(e => ({ seq: e.seq, type: e.type, payload: e.payload, createdAt: e.created_at })) };
+  if ((match = t('tasks/([^/]+)/approvals'))) return { method, path, out: (rows: any[]) => rows.map(mapApproval) };
+  if ((match = t('tasks/([^/]+)/approvals/([^/]+)/decision'))) return { method, path, body, out: mapApproval };
+  if ((match = t('tasks/([^/]+)/retry'))) return { method, path, out: identity };
   if ((match = t('tasks/([^/]+)/(messages|cancel)'))) return { method, path, body, out: mapTask };
 
   if ((match = t('projects'))) return method === 'GET'

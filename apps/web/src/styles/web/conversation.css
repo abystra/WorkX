@@ -1,0 +1,15 @@
+/* Run states for the real runtime (new UI; apps/web/docs/NEW-SCREENS.md). Built on prototype tokens. */
+.wx-answer-text{white-space:pre-wrap;line-height:1.7}
+.wx-run-state:empty{display:none}
+.wx-run-state .progress-line .text-btn{margin-left:auto;font-size:12px}
+.wx-run-steps{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.wx-run-steps li{display:flex;align-items:center;gap:7px}
+.wx-run-steps li.is-done svg{color:#6b937a}
+.wx-run-steps li.is-failed svg{color:#ab8a75}
+.wx-approval{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;background:var(--surface)}
+.wx-approval strong{font-size:14px}
+.wx-approval p{margin:6px 0;font-size:13px;color:var(--muted)}
+.wx-approval .wx-approval-summary{color:var(--text);font-size:14px}
+.wx-approval .row{gap:8px;margin-top:10px}
+.wx-run-ended{margin-top:10px}
+.wx-run-ended p{margin:0 0 8px}

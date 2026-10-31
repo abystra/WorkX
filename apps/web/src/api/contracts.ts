@@ -97,7 +97,16 @@ export interface Task extends Resource {
   /** 'simulated' when produced by the development adapter's template runner. */
   answerKind?: 'simulated' | 'markdown';
   answer?: string;
+  /** Real API: full runtime state (Part 4) and reason; `status` above is the coarser UI view. */
+  apiStatus?: string;
+  statusReason?: string | null;
 }
+
+/** Real-API conversation (http mode). */
+export interface TaskMessageView { id: string; role: 'user' | 'assistant' | 'system'; content: string; fileId?: string; createdAt: string }
+export interface TaskDetail extends Task { apiStatus: string; statusReason?: string | null; messages: TaskMessageView[] }
+export interface TaskEventView { seq: number; type: string; payload: Record<string, unknown>; createdAt: string }
+export interface ApprovalView { id: string; tool: string; summary: string; status: 'pending' | 'approved' | 'rejected' | 'expired'; expiresAt: string }
 
 export interface Project extends Resource {
   name: string;

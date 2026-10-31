@@ -45,13 +45,14 @@ class SdkEngine:
         self.started = time.monotonic()
 
     def options(self) -> Any:
-        from claude_agent_sdk import ClaudeAgentOptions, HookMatcher
+        from claude_agent_sdk import ClaudeAgentOptions, HookContext, HookInput, HookJSONOutput, HookMatcher
 
         roots = [self.spec["cwd"], self.spec["outputs_dir"]]
 
-        async def path_guard(input_data: dict[str, Any], tool_use_id: str | None, context: Any) -> dict[str, Any]:
-            tool = input_data.get("tool_name", "")
-            target = (input_data.get("tool_input") or {}).get("file_path")
+        async def path_guard(input_data: HookInput, tool_use_id: str | None, context: HookContext) -> HookJSONOutput:
+            data: dict[str, Any] = dict(input_data)
+            tool = data.get("tool_name", "")
+            target = (data.get("tool_input") or {}).get("file_path")
             if tool in WRITE_TOOLS and target and not inside(str(target), roots):
                 return {
                     "hookSpecificOutput": {
@@ -86,6 +87,8 @@ class SdkEngine:
             env={
                 "ANTHROPIC_BASE_URL": self.spec["model_gateway"]["base_url"],
                 "ANTHROPIC_API_KEY": self.model_ticket,
+                # Background calls must use the pinned model too: the Model Gateway refuses any other.
+                "ANTHROPIC_SMALL_FAST_MODEL": self.spec["model"],
                 "CLAUDE_CONFIG_DIR": config_dir,
                 "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
                 "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",

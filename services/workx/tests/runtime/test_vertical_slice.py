@@ -71,7 +71,7 @@ class CapturingProvider(LocalProcessProvider):
         return sandbox
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="package")
 def stack(test_database: ProvisionedDatabase, db: Database) -> Iterator[Stack]:
     base = {"environment": Environment.TEST, "database_url": test_database.app_url}
     upstream = Served(create_fake_anthropic())

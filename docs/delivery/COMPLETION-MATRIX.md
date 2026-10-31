@@ -18,12 +18,12 @@ Legend: ✅ done · 🟡 partial (see note) · ⬜ not started · ⛔ blocked (r
 | B-06 | Web shell/admin on real API | P-04 | ✅ | ✅ | n/a | Web http transport + mapping; browser journeys J1–J3 against the real API (`apps/web/tests/e2e/real-backend.mjs`, 14/14). ETag/If-Match and list pagination not yet (P-12). Connections/knowledge/channels screens wait for P-07..P-09 |
 | B-07 | Jobs/outbox, reconciler, audit, usage events | P-03 | ✅ | ✅ | n/a | PG queue with SKIP LOCKED leases, outbox fan-out dedupe, backoff, DLQ + `workx jobs dead/retry`, reconciler skeleton, audit API, idempotent usage metering |
 | B-08 | Agents: drafts, versions, publish, sharing, skills | P-04 | ✅ | ✅ | n/a | Saving runtime fields publishes an immutable version (DB trigger); tasks pin versions; starter workmate per new workspace |
-| B-09 | Runtime release, E2B template, Runner v1 | P-05 | ⬜ | ⬜ | ⬜ | Real: E2B key |
-| B-10 | Model Gateway, budgets, usage | P-05 | ⬜ | ⬜ | ⬜ | Real: Anthropic key |
-| B-11 | Broker tickets, Tool Gateway (class 0/A), ledger | P-05 | ⬜ | ⬜ | n/a | |
-| B-12 | Orchestrator, leases, fencing, events, SSE | P-05 | ⬜ | ⬜ | ⬜ | Real: with E2B + Anthropic |
+| B-09 | Runtime release, E2B template, Runner v1 | P-05 | ✅ | ✅ | ⛔ | Runner (SDK + messages engines), protocol schemas, E2B provider and template (renders offline). SDK engine verified with the real bundled Claude Code CLI through the gateways. Real: E2B key needed (runtime/README.md) |
+| B-10 | Model Gateway, budgets, usage | P-05 | ✅ | ✅ | ⛔ | Ticket auth, pinned model, per-task/monthly budgets, streaming passthrough, usage metering; upstream verified only against the scripted dev model. Real: Anthropic key |
+| B-11 | Broker tickets, Tool Gateway (class 0/A), ledger | P-05 | ✅ | ✅ | n/a | Digest-only tickets, MCP gateway, tool scopes, ledger dedupe across attempts, SSRF-guarded web_fetch; class-A connector is the platform test CRM until P-07 |
+| B-12 | Orchestrator, leases, fencing, events, SSE | P-05 | ✅ | ✅ | ⛔ | Fence-checked frames, leases + heartbeat, coalesced deltas, task SSE with replay; web conversation shows real runs (17/17 browser checks). Real: with E2B + Anthropic |
 | B-13 | Artifact ingestion, validation, Library | P-06 | ⬜ | ⬜ | n/a | |
-| B-14 | Cancel/retry/recovery, approvals | P-05 | ⬜ | ⬜ | ⬜ | |
+| B-14 | Cancel/retry/recovery, approvals | P-05 | ✅ | ✅ | ⛔ | Cancel revokes tickets and kills after 20 s; reconciler → interrupted; retry with next fence, no duplicate writes; approvals bound to argument digests, UI approve/reject. Checkpoints/resume of SDK sessions not built (fresh attempt with history) |
 | B-15 | KeyProvider, secret versions, API-key connections | P-07 | ⬜ | ⬜ | ⬜ | Real: KMS/OpenBao |
 | B-16 | OAuth (Feishu user, MCP), needs_auth resume | P-07 | ⬜ | ⬜ | ⬜ | Real: Feishu app, MCP server |
 | B-17 | Org-shared connections, usage policies | P-07 | ⬜ | ⬜ | n/a | |

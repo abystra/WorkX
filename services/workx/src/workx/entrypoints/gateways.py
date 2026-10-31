@@ -33,3 +33,13 @@ def dev_crm() -> FastAPI:
         ToolGatewaySettings().crm_api_key.get_secret_value() or "dev-crm-key",
         environment=BaseWorkxSettings().environment,
     )
+
+
+def dev_model() -> FastAPI:
+    import os
+
+    from workx.core.settings import BaseWorkxSettings
+    from workx.entrypoints.dev_model import UPSTREAM_KEY, create_dev_model_app
+
+    key = os.environ.get("WORKX_DEV_MODEL_KEY", UPSTREAM_KEY)
+    return create_dev_model_app(key=key, environment=BaseWorkxSettings().environment)

@@ -69,6 +69,20 @@ Source: `src/features/knowledge/Knowledge.tsx`, `src/styles/web/knowledge.css`.
 
 With the development adapter, processing is simulated (Processing → Ready after 1.2 s) and a `.prototype-note` says files are not parsed or searched. Upload of new files is not built; Knowledge uses existing Library files only.
 
+## 2b. Run states in the conversation (real runtime only)
+
+Source: `src/features/tasks/RealConversation.tsx`, `src/styles/web/conversation.css`. Used only when execution is not simulated; the adapter keeps the prototype's simulated answer.
+
+It renders the real messages with the prototype classes (`chat-user`, `assistant-header`, `assistant-answer`, `answer-artifact` for result files), plus these new states:
+
+- **Queued:** "Waiting to start…".
+- **Working:** a pulse line with a Stop button and a list of tool steps (running, done, failed, or reused from an earlier attempt).
+- **Approval needed:** a bordered card with a summary, Approve and Reject.
+- **Failed, interrupted or cancelled:** a short explanation, the reason for failures, and Try again.
+- **Needs access:** an explanation plus Try again.
+
+**For review:** the tool names shown in steps come straight from the gateway, such as "crm list accounts". The product might want friendlier labels per connector.
+
 ## 3. Changed wording (approved, decision 31 / Q-17, D-02)
 
 Source: `src/i18n/overrides.ts`. Same position, similar length. Prototype-only claims (browser storage, "this prototype") are replaced:

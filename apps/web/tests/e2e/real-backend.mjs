@@ -49,6 +49,16 @@ await alex.page.fill('#task-prompt', 'Summarize this week in three bullets');
 await alex.page.click('[data-action="send-task"]');
 await alex.page.waitForURL(/\/task\/tsk_/, { timeout: 10000 });
 expect('task created through the API and opened', /\/task\/tsk_/.test(alex.page.url()), alex.page.url());
+// The orchestrator runs it: runner → model gateway → (dev model or Anthropic) → tool gateway → test CRM.
+await alex.page.waitForSelector('.wx-answer-text', { timeout: 60000 });
+await alex.page.waitForSelector('.answer-artifact', { timeout: 30000 });
+const conversation = await alex.page.textContent('.chat-scroll');
+expect('P-05 the workmate answered through the real runtime', conversation.includes('top accounts'), conversation.slice(0, 200));
+expect('P-05 the result file is attached to the answer', (await alex.page.textContent('.answer-artifact')).includes('top-accounts.md'));
+await alex.page.click('.answer-artifact');
+await alex.page.waitForTimeout(500);
+expect('P-05 the result file opens with its content', (await alex.page.textContent('body')).includes('Northwind Traders'));
+await alex.page.keyboard.press('Escape');
 
 // ---- J2: create an organization and invite Bob by email
 await alex.page.click('[data-action="profile"]');

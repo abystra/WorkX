@@ -12,6 +12,7 @@ import { showFile } from '@/features/library/FileDialog';
 import { AssignTaskDialog } from '@/features/projects/ProjectDialogs';
 import { ChannelTaskBadge } from '@/features/channels/ChannelTaskBadge';
 import { ChannelTaskDetail } from '@/features/channels/ChannelTaskDetail';
+import { RealConversation } from './RealConversation';
 import { Composer } from './Composer';
 import { modelLabel } from './ComposerMenus';
 
@@ -127,11 +128,12 @@ export function Chat() {
       </header>
       <TaskCollaboration task={task} />
       <div className="chat-scroll">
-        <div className="chat-user">
+        {runtime.simulated ? <div className="chat-user">
           {task.prompt || task.name}
           {task.attachment ? <div className="attachment-pill" style={{ margin: '10px 0 0', background: 'white' }}><Icon name="file" size={14} />{task.attachment}</div> : null}
           {task.capabilities?.length ? <div className="prototype-note" style={{ marginTop: 8 }}>{task.capabilities.map(c => displayText(t, c)).join(' · ')} · {displayText(t, modelLabel(t, task.model || 'Auto', models.data))}</div> : null}
-        </div>
+        </div> : null}
+        {!runtime.simulated ? <RealConversation task={task} /> : (<>
         <div className="assistant-header"><Avatar index={agent.avatar} size={29} />{agent.name}{runtime.simulated ? <span className="demo-badge">{t('Prototype')}</span> : null}</div>
         <div className="assistant-answer"><Answer task={task} /></div>
         {(task.replies || []).map((r, i) => (
@@ -145,6 +147,7 @@ export function Chat() {
             </div>
           </Fragment>
         ))}
+        </>)}
       </div>
       <div className="chat-composer">
         <Composer followup />

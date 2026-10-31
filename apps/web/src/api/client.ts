@@ -1,6 +1,6 @@
 import type {
   ModelOption, ActivityEvent, Agent, Artifact, Automation, ChannelRun, CollectionName, Connection, EcosystemBinding, Invitation, Me,
-  KnowledgeSource, Member, Project, ScenarioDraft, Task, TenantDetail, TenantSummary,
+  ApprovalView, KnowledgeSource, Member, Project, ScenarioDraft, Task, TaskDetail, TaskEventView, TenantDetail, TenantSummary,
 } from './contracts';
 import type { Transport } from './transport';
 
@@ -51,6 +51,14 @@ export const api = {
   create: <C extends CollectionName>(tenantId: string, collection: C, body: Record<string, unknown>) => req<CollectionTypes[C]>('POST', `${t(tenantId)}/${collection}`, body),
   update: <C extends CollectionName>(tenantId: string, collection: C, id: string, patch: Record<string, unknown>) => req<CollectionTypes[C]>('PATCH', `${t(tenantId)}/${collection}/${encodeURIComponent(id)}`, patch),
 
+  /** Real API only: conversation, run events and controls (the development adapter simulates these). */
+  taskDetail: (tenantId: string, taskId: string) => req<TaskDetail>('GET', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}`),
+  taskEvents: (tenantId: string, taskId: string) => req<TaskEventView[]>('GET', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/events`),
+  approvals: (tenantId: string, taskId: string) => req<ApprovalView[]>('GET', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/approvals`),
+  decide: (tenantId: string, taskId: string, approvalId: string, decision: 'approve' | 'reject') =>
+    req<ApprovalView>('POST', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/approvals/${encodeURIComponent(approvalId)}/decision`, { decision }),
+  retry: (tenantId: string, taskId: string) => req<unknown>('POST', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/retry`),
+  cancel: (tenantId: string, taskId: string) => req<Task>('POST', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/cancel`),
   sendMessage: (tenantId: string, taskId: string, prompt: string) => req<Task>('POST', `${t(tenantId)}/tasks/${encodeURIComponent(taskId)}/messages`, { prompt }),
 
   members: (tenantId: string) => req<Member[]>('GET', `${t(tenantId)}/members`),
