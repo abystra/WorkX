@@ -160,7 +160,7 @@ Every backlog item that delivers UI (B-06, B-08, B-12, B-13, B-14, B-16, B-17, B
 | ID | Question | Why it matters | Needed by |
 | --- | --- | --- | --- |
 | **Q-01** | Which markets and regions does R1 serve? Are mainland-China tenants in scope, and must their data and processing stay in China? Feishu or Lark (or both)? | Claude API is unavailable in mainland China/HK/Macau; determines whether the chosen runtime is viable for the target customers (C-01) | Before P0 ends |
-| **Q-02** | Remove the multi-vendor model picker and expose Claude tiers only? | C-02 | P2 start |
+| **Q-02** | **Decided 2026-10-31: accepted recommendation.** Remove the multi-vendor model picker and expose Claude tiers only? | C-02 | P2 start |
 | **Q-03** | What is the first business scenario (inputs, outputs, success metric)? | Prioritizes connectors, artifact types, knowledge formats | P1 |
 | **Q-04** | SaaS only, or must a private/self-hosted edition be planned for R2–R3? | KeyProvider, E2B self-hosting, licensing choices (AGPL components) | P1 |
 | **Q-05** | When a member leaves, who owns their private resources: keep with reassignment by admin (recommended), mandatory reassignment, or archive? | C-10 | P1 |
@@ -173,6 +173,6 @@ Every backlog item that delivers UI (B-06, B-08, B-12, B-13, B-14, B-16, B-17, B
 | **Q-12** | Are automations (scheduled tasks) needed in R1 for the first scenario? | Scheduler scope | P2 |
 | **Q-13** | Plans/quotas for personal vs organization (concurrency, budgets) | Admission control defaults | P2 |
 | **Q-14** | Is the "Code" mode (repository/terminal) a product priority for R2? | Runtime features (Git, larger sandboxes) | R2 planning |
-| **Q-15** | Where does Knowledge live in the UI? Proposed: inside Workmate detail "Work Context" plus a Library filter, with no new sidebar item | Knowledge has no prototype screen; a new nav item would change the approved IA | Before F4 |
-| **Q-16** | Approve darkening `--muted` (3.02:1 contrast) for accessibility, or keep the baseline color? | WCAG AA vs visual fidelity | Before F1 |
-| **Q-17** | Confirm replacement copy for simulation-only text (D-02), e.g. the "About this prototype" menu item | Production honesty vs fidelity | Before F1 |
+| **Q-15** | **Decided 2026-10-31: accepted recommendation.** Where does Knowledge live in the UI? Proposed: inside Workmate detail "Work Context" plus a Library filter, with no new sidebar item | Knowledge has no prototype screen; a new nav item would change the approved IA | Before F4 |
+| **Q-16** | **Decided 2026-10-31: accepted recommendation.** Approve darkening `--muted` (3.02:1 contrast) for accessibility, or keep the baseline color? | WCAG AA vs visual fidelity | Before F1 |
+| **Q-17** | **Decided 2026-10-31: accepted recommendation.** Confirm replacement copy for simulation-only text (D-02), e.g. the "About this prototype" menu item | Production honesty vs fidelity | Before F1 |

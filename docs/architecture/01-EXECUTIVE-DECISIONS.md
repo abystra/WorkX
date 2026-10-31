@@ -123,7 +123,7 @@ Status values: **Approved** (product owner decided), **Provisional** (adopted fo
 | 12 | `KeyProvider` with cloud KMS (SaaS) / OpenBao (self-hosted) | Validation-required | Security | C-08, Q-07 |
 | 13 | Drop E2B volumes (`/mnt/persist`) from R1 | Provisional | Arch | C-07 |
 | 14 | Keycloak for identity | Provisional | Arch | AD-05; spike S-06 |
-| 15 | Model picker limited to Claude tiers | Validation-required (PO) | PO | C-02, Q-02 |
+| 15 | Model picker limited to Claude tiers | **Approved (2026-10-31)** | PO | C-02, Q-02; Part 15 D-01 |
 | 16 | Target region / China strategy | **Open — PO decision** | PO | C-01, Q-01 |
 | 17 | Member-departure resource ownership rule | Open — PO decision | PO | C-10, Q-05 |
 | 18 | Run Agent SDK in FastAPI process | Rejected | — | Shared process for untrusted execution |
@@ -137,4 +137,7 @@ Status values: **Approved** (product owner decided), **Provisional** (adopted fo
 | 26 | UI fidelity scope is the desktop web browser (1440×900, 1280×800); narrow/mobile layouts not in acceptance | Approved (2026-10-31) | PO | Part 15 §1.3 |
 | 27 | Port prototype stylesheets, DOM structure, class names, icons and i18n keys verbatim; no new component library | Provisional | Arch/Frontend | Part 15 §4.2 |
 | 28 | Adopt a third-party component library (e.g., Radix-based styling) for the production UI | Rejected | — | Would change DOM and styling of the approved baseline |
-| 29 | Contrast fix for `--muted` text (3.02:1) | Validation-required (PO/design) | PO | Part 15 D-04, Q-16 |
+| 29 | Darken `--muted` secondary text from `#8f959e` (3.02:1) to `#6b7079` (4.98:1) | **Approved (2026-10-31)** | PO | Part 15 D-04, Q-16 |
+| 30 | Knowledge UI lives inside Workmate detail "Work Context" plus a Library "Knowledge" filter; no new sidebar item | **Approved (2026-10-31)** | PO | Part 15 §4.3, Q-15 |
+| 31 | Replace simulation-only wording with production wording at the same position and similar length | **Approved (2026-10-31)** | PO | Part 15 D-02, Q-17 |
+| 32 | Begin production React implementation (`apps/web`) | **Approved (2026-10-31)** | PO | Part 15, Part 9 |

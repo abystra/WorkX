@@ -15,7 +15,7 @@ import { STATES, VIEWPORTS } from './states.mjs';
 import { TARGETS } from './targets.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => {
-  if (a.startsWith('--')) acc.push([a.slice(2), all[i + 1]]);
+  if (a.startsWith('--')) acc.push([a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true]);
   return acc;
 }, []));
 const target = TARGETS[args.target || 'prototype'];
@@ -64,7 +64,7 @@ for (const locale of locales) {
       page.on('console', m => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
       const result = { id: state.id, locale, viewport: vp, ok: true, errors, failedStep: null };
       try {
-        await target.prepare(page, { base, locale });
+        await target.prepare(page, { base, locale, raw: 'raw' in args });
         await target.open(page, { base, state });
         for (const step of (state.targetSteps?.[report.target] || state.steps || [])) await runStep(page, step);
         await page.waitForTimeout(200);

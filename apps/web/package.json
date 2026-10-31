@@ -1,0 +1,37 @@
+{
+  "name": "@workx/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "WorkX production web app (React + TypeScript). The approved prototype UI is the visual baseline.",
+  "scripts": {
+    "dev": "vite --mode development",
+    "dev:fidelity": "vite --mode fidelity --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build --mode production && node scripts/check-production-bundle.mjs",
+    "build:demo": "tsc --noEmit && vite build --mode demo --outDir dist-demo",
+    "preview:demo": "vite preview --mode demo --outDir dist-demo --port 4174",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "messages:convert": "node scripts/convert-prototype-messages.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.62.7",
+    "@tanstack/react-router": "1.87.12",
+    "i18next": "23.16.8",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-i18next": "15.1.4",
+    "zustand": "4.5.5"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/react": "16.1.0",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "jsdom": "25.0.1",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

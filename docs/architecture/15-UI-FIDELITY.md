@@ -152,7 +152,7 @@ All new states reuse existing patterns. "Pattern" names the prototype element to
 | Concurrent edit conflict (412) | Edit dialogs | Dialog-level error with "Reload" secondary action |
 | Real-time update by another member | Project board, task list | Silent refresh; no new visual |
 | Security & sessions | Personal settings | New tab in the existing settings sidebar, using `ws-section` cards |
-| **Knowledge sources** (new functionality) | Proposed: inside Workmate detail "Work Context" tab ("Knowledge" section) and as a "Knowledge" filter in Library. **No new sidebar item** unless the PO decides otherwise (Q-15). | Library list + filter chips; per-file status tags reuse the channel status tag colors |
+| **Knowledge sources** (new functionality) | Proposed: inside Workmate detail "Work Context" tab ("Knowledge" section) and as a "Knowledge" filter in Library. **No new sidebar item** (approved 2026-10-31, Q-15). | Library list + filter chips; per-file status tags reuse the channel status tag colors |
 
 ### 4.4 Faithful migration vs new functionality
 
@@ -166,10 +166,10 @@ Each deviation needs a category, reason, and approval. Approved deviations are r
 
 | ID | Category | Difference | Reason | Status |
 | --- | --- | --- | --- | --- |
-| D-01 | Architectural constraint | Composer model menu lists Claude model tiers only (prototype: Auto/Doubao/DeepSeek/Claude). Same menu component and placement. | Claude Agent SDK runs Claude models only (Part 1 C-02) | Pending PO (Q-02) |
-| D-02 | Architectural constraint | Remove simulation-only copy and controls in production builds: "About this prototype", "Saved in this browser…", "Local interactive demo…" footers, `example.invalid` callback URLs, "simulate success/failure" selectors, "Simulate message" in Channel workbench, "demo accept" invitation button | These describe simulated behavior that no longer exists; keeping them would be false | Proposed; replacement copy keeps position and similar length; confirm wording (Q-17) |
+| D-01 | Architectural constraint | Composer model menu lists Claude model tiers only (prototype: Auto/Doubao/DeepSeek/Claude). Same menu component and placement. | Claude Agent SDK runs Claude models only (Part 1 C-02) | **Approved 2026-10-31** |
+| D-02 | Architectural constraint | Remove simulation-only copy and controls in production builds: "About this prototype", "Saved in this browser…", "Local interactive demo…" footers, `example.invalid` callback URLs, "simulate success/failure" selectors, "Simulate message" in Channel workbench, "demo accept" invitation button | These describe simulated behavior that no longer exists; keeping them would be false | **Approved 2026-10-31** (Q-17); wording table in `apps/web/docs/NEW-SCREENS.md` |
 | D-03 | Security | Secret fields in connection dialogs stay write-only after save; the existing show/hide toggle works only before submit | Credential rule: product APIs never return secret values (Part 6) | Matches prototype behavior (IN-14); no visual change |
-| D-04 | Accessibility (proposed, not applied) | `--muted` `#8f959e` on white has contrast **3.02:1** (2.82:1 on `#f7f7f7`), below WCAG 2.2 AA 4.5:1 for the 10–13 px text where it is used. Option: darken to `#6b7079` (4.98:1). `--blue` `#3370ff` text on white is 4.28:1 (passes for large text only). | Accessibility | **Not applied.** Baseline kept until PO/design approves; listed so the decision is explicit (Q-16) |
+| D-04 | Accessibility | `--muted` `#8f959e` on white has contrast **3.02:1** (2.82:1 on `#f7f7f7`), below WCAG 2.2 AA 4.5:1 for the 10–13 px text where it is used. Option: darken to `#6b7079` (4.98:1). `--blue` `#3370ff` text on white is 4.28:1 (passes for large text only). | Accessibility | **Approved 2026-10-31** (Q-16): `#6b7079` applied to `--muted` and to text colors that used the literal `#8f959e`. The baseline capture applies the same substitution so comparisons measure only unapproved differences |
 | D-05 | Architectural constraint | URLs change from `#page/id` to `/t/:slug/page/id` | Path-scoped tenant (Part 3 §3) | Not visible in the page |
 | D-06 | Confirmed product requirement | Desktop-only acceptance | PO 2026-10-31 | Approved |
 
